@@ -1,3 +1,3 @@
-# OpenAD Plugin Demo
+# OpenAD Deep Search Plugin
 
-This is the README.
+Work in progress...

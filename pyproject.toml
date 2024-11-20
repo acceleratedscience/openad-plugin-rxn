@@ -1,0 +1,47 @@
+# Fill in the fields below, then delete this line and the next.
+# https://packaging.python.org/en/latest/guides/writing-pyproject-toml
+
+[tool.poetry]
+name = "openad_plugin_ds"
+version = "0.0.1"
+description = "Deep Search functionality for OpenAD"
+keywords= ["deep", "search", "openad", "ibm", "research", "molecule", "chemistry", "patent"]
+authors = [
+  "Moenen Erbuer <moenen.erbuer@ibm.com>",
+]
+maintainers = [
+  "Moenen Erbuer <moenen.erbuer@ibm.com>",
+  "Phil Downey <phil.downey1@ibm.com>"
+]
+homepage = "https://research.ibm.com/projects/deep-search"
+documentation = "https://github.com/DS4SD/deepsearch-toolkit"
+repository = "https://github.com/DS4SD/deepsearch-toolkit"
+readme = "README.md"
+license = "MIT"
+classifiers = [
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Typing :: Typed",
+    "Programming Language :: Python :: 3.11"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+openad_grammar_def = { git = "ssh://git@github.com/acceleratedscience/openad-grammar-def", branch = "main" }
+
+
+
+
+########## Do not below this line ##########
+
+
+
+
+[tool.black]
+line-length=120
+
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

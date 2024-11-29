@@ -14,6 +14,7 @@ from openad.helpers.output import output_error, output_warning, output_text, out
 
 # Local tools
 from openad_plugin_ds.commands.search_similar.search_similar import search_similar_molecules
+from openad_plugin_ds.commands.search_similar.description import description
 from openad_plugin_ds.plugin_login import login
 
 
@@ -53,8 +54,8 @@ class PluginCommand:
         grammar_help.append(
             help_dict_create_v2(
                 category=PLUGIN_NAME,
-                command=f"{PLUGIN_NAMESPACE} search for similar molecules to '<smiles>' [ save as '<filename.csv>' ]",
-                description_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "description.txt"),
+                command=f"{PLUGIN_NAMESPACE} search for similar molecules to <smiles> [ save as '<filename.csv>' ]",
+                description=description,
                 note=CMD_NOTE,
             )
         )
@@ -62,4 +63,4 @@ class PluginCommand:
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
 
-        search_similar_molecules(cmd_pointer, parser)
+        return search_similar_molecules(cmd_pointer, parser)

@@ -1,28 +1,30 @@
+import numpy as np
 import pandas as pd
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.smols.smol_cache import create_analysis_record, save_result
-from openad.smols.smol_functions import canonicalize, valid_smiles
+from openad.smols.smol_functions import canonicalize, valid_smiles, valid_inchi
+from openad.helpers.output_msgs import msg
 from openad.helpers.files import save_df_as_csv
-from openad.helpers.output import output_success, output_error, output_table
 from openad.helpers.jupyter import jup_display_input_molecule
+from openad.helpers.output import output_success, output_error, output_table
 
 # Plugin
 from openad_plugin_ds.plugin_msg import msg as plugin_msg
 from openad_plugin_ds.plugin_params import PLUGIN_KEY
 
 # Deep Search
-from deepsearch.chemistry.queries.molecules import MoleculeQuery, MolQueryType
+from deepsearch.chemistry.queries.molecules import PatentsWithMoleculesQuery, MolId, MolIdType
 
 
-def search_similar_molecules(cmd_pointer, cmd):
+def search_patents_containing_molecule(cmd_pointer, cmd: dict):
     """
-    Search for molecules similar to a given molecule.
+    Searches for patents that contain mentions of a given molecule.
 
     Parameters
     ----------
-    cmd_pointer:
+    cmd_pointer
         The command pointer object
     cmd: dict
         Parser inputs from pyparsing as a dictionary
@@ -32,56 +34,56 @@ def search_similar_molecules(cmd_pointer, cmd):
     api = cmd_pointer.login_settings["toolkits_api"][cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)]
 
     # Parse identifier
-    smiles = cmd["smiles"][0]
-    if not valid_smiles(smiles):
-        return output_error(plugin_msg("err_invalid_identifier"), return_val=False)
-    else:
-        canonical_smiles = canonicalize(smiles)
+    identifier = cmd["identifier"][0]
+
+    result_type = ""
+    resp = None
 
     # Fetch results from API
     try:
-        query = MoleculeQuery(
-            query=canonical_smiles,
-            query_type=MolQueryType.SIMILARITY,
-        )
+        if valid_smiles(identifier) is True:
+            identifier = canonicalize(identifier) or identifier
+            query = PatentsWithMoleculesQuery(
+                molecules=[MolId(type=MolIdType.SMILES, value=identifier)],
+                num_items=20,
+            )
+            result_type = "SMILES"
+        elif valid_inchi(identifier) is True:
+            query = PatentsWithMoleculesQuery(
+                molecules=[MolId(type=MolIdType.INCHI, value=identifier)],
+                num_items=20,
+            )
+            result_type = "InChI"
+        else:
+            query = PatentsWithMoleculesQuery(
+                molecules=[MolId(type=MolIdType.INCHIKEY, value=identifier)],
+                num_items=20,
+            )
+            result_type = "InChIKey"
 
         resp = api.queries.run(query)
         # raise Exception('This is a test error')
     except Exception as err:  # pylint: disable=broad-exception-caught
         output_error(plugin_msg("err_deepsearch", err), return_val=False)
-        return False
+        return
 
-    # Parse results
+    # Compile results
     results_table = []
-    for row in resp.outputs["molecules"]:
-        result = {
-            "id": row["persistent_id"],
-            "SMILES": "",
-            "InChIKey": "",
-            "InChI": "",
-        }
-        for ref in row["identifiers"]:
-            if ref["type"] == "smiles":
-                result["SMILES"] = ref["value"]
-            if ref["type"] == "inchikey":
-                result["InChIKey"] = ref["value"]
-            if ref["type"] == "inchi":
-                result["InChI"] = ref["value"]
+    for doc in resp.outputs["patents"]:
+        result = {"Patent ID": ""}
+        for ident in doc["identifiers"]:
+            if ident["type"] == "patentid":
+                result["Patent ID"] = ident["value"]
         results_table.append(result)
 
     # No results found
+    # results_table = [] # Keep here for testing
     if not results_table:
-        return output_error("No similar molecules found.")
+        return output_error(plugin_msg("err_no_patents_found", result_type, identifier), return_val=False)
 
     # Success
     output_success(
-        [
-            f"We found <yellow>{len(results_table)}</yellow> molecules similar to the provided SMILES.",
-            f"Input: {smiles}",
-            f"Canonicalized Input: {canonical_smiles}",
-        ],
-        return_val=False,
-        pad_top=1,
+        plugin_msg("success_patents_found", len(results_table), result_type, identifier), return_val=False, pad_top=1
     )
 
     df = pd.DataFrame(results_table)
@@ -92,9 +94,9 @@ def search_similar_molecules(cmd_pointer, cmd):
     # `enrich mols with analysis`
     save_result(
         create_analysis_record(
-            canonical_smiles,
+            identifier,
             PLUGIN_KEY,
-            "Similar_Molecules",
+            "Patents_Containing_Molecule",
             "",
             results_table,
         ),
@@ -103,7 +105,7 @@ def search_similar_molecules(cmd_pointer, cmd):
 
     # Display image of the input molecule in Jupyter Notebook
     if GLOBAL_SETTINGS["display"] == "notebook":
-        jup_display_input_molecule(canonical_smiles, "smiles")
+        jup_display_input_molecule(identifier)
 
     # Display results in CLI & Notebook
     if GLOBAL_SETTINGS["display"] != "api":

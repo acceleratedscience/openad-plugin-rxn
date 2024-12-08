@@ -3,20 +3,22 @@ import pyparsing as py
 
 # OpenAD
 from openad.core.help import help_dict_create_v2
+from openad.helpers.output import output_error, output_warning, output_text, output_success, output_table
 
 # Plugin
-from openad_grammar_def import str_quoted, clause_save_as
-from openad_plugin_ds.plugin_grammar_def import l_ist, collection, details
+from openad_grammar_def import molecules, molecule_identifier, clause_save_as
+from openad_plugin_ds.plugin_grammar_def import find, w_ith, substructure
 from openad_plugin_ds.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
-from openad_plugin_ds.commands.list_collection_details.list_collection_details import list_collection_details
-from openad_plugin_ds.commands.list_collection_details.description import description
+
+from openad_plugin_ds.commands.find_mols_substruct.find_mols_substruct import find_substructure_molecules
+from openad_plugin_ds.commands.find_mols_substruct.description import description
 
 # Login
 from openad_plugin_ds.plugin_login import login
 
 
 class PluginCommand:
-    """List collection details..."""
+    """Find molecules with substructure..."""
 
     category: str  # Category of command
     index: int  # Order in help
@@ -24,18 +26,24 @@ class PluginCommand:
     parser_id: str  # Internal unique identifier
 
     def __init__(self):
-        self.category = "Collections"
-        self.index = 3
+        self.category = "Molecules"
+        self.index = 1
         self.name = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         self.parser_id = f"plugin_{PLUGIN_KEY}_{self.name}"
 
-    def add_grammar(self, statements: l_ist, grammar_help: l_ist):
+    def add_grammar(self, statements: list, grammar_help: list):
         """Create the command definition & documentation"""
 
         # Command definition
         statements.append(
             py.Forward(
-                py.Word(PLUGIN_NAMESPACE) + l_ist + collection + details + str_quoted("collection") + clause_save_as
+                py.Word(PLUGIN_NAMESPACE)
+                + find
+                + molecules
+                + w_ith
+                + substructure
+                + molecule_identifier("smiles")
+                + clause_save_as
             )(self.parser_id)
         )
 
@@ -45,7 +53,7 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=f"""{PLUGIN_NAMESPACE} list collection details '<collection_name_or_key>'""",
+                command=f"{PLUGIN_NAMESPACE} find molecules with substructure <smiles> [ save as '<filename.csv>' ]",
                 description=description,
                 note=CMD_NOTE,
             )
@@ -59,4 +67,4 @@ class PluginCommand:
 
         # Execute
         cmd = parser.as_dict()
-        return list_collection_details(cmd_pointer, cmd)
+        find_substructure_molecules(cmd_pointer, cmd)

@@ -2,6 +2,7 @@ import pyparsing as py
 
 search = py.CaselessKeyword("search")
 f_or = py.CaselessKeyword("for")
+find = py.CaselessKeyword("find")
 similar = py.CaselessKeyword("similar")
 to = py.CaselessKeyword("to")
 save = py.CaselessKeyword("save")
@@ -14,16 +15,15 @@ file = py.CaselessKeyword("file")
 dataframe = py.CaselessKeyword("dataframe")
 containing = py.CaselessKeyword("containing")
 substructure = py.CaselessKeyword("substructure")
-instances = py.CaselessKeyword("instances")
-of = py.CaselessKeyword("of")
 collection = py.CaselessKeyword("collection")
 collections = py.CaselessKeyword("collections")
-list = py.CaselessKeyword("list")
+l_ist = py.CaselessKeyword("list")
 matches = py.CaselessKeyword("matches")
 a_ll = py.CaselessKeyword("all")
 details = py.CaselessKeyword("details")
 domain = py.CaselessKeyword("domain")
 domains = py.CaselessKeyword("domains")
+w_ith = py.CaselessKeyword("with")
 
 # Search collection
 clause_show = py.Optional(

@@ -6,17 +6,19 @@ from openad.core.help import help_dict_create_v2
 
 # Plugin
 from openad_grammar_def import str_quoted, clause_save_as
-from openad_plugin_ds.plugin_grammar_def import l_ist, collection, details
+from openad_plugin_ds.plugin_grammar_def import l_ist, collections, containing
 from openad_plugin_ds.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
-from openad_plugin_ds.commands.list_collection_details.list_collection_details import list_collection_details
-from openad_plugin_ds.commands.list_collection_details.description import description
+from openad_plugin_ds.commands.list_collections_containing.list_collections_containing import (
+    list_collections_containing,
+)
+from openad_plugin_ds.commands.list_collections_containing.description import description
 
 # Login
 from openad_plugin_ds.plugin_login import login
 
 
 class PluginCommand:
-    """List collection details..."""
+    """List collections containing..."""
 
     category: str  # Category of command
     index: int  # Order in help
@@ -25,7 +27,7 @@ class PluginCommand:
 
     def __init__(self):
         self.category = "Collections"
-        self.index = 3
+        self.index = 2
         self.name = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         self.parser_id = f"plugin_{PLUGIN_KEY}_{self.name}"
 
@@ -35,7 +37,12 @@ class PluginCommand:
         # Command definition
         statements.append(
             py.Forward(
-                py.Word(PLUGIN_NAMESPACE) + l_ist + collection + details + str_quoted("collection") + clause_save_as
+                py.Word(PLUGIN_NAMESPACE)
+                + l_ist
+                + collections
+                + containing
+                + str_quoted("search_query")
+                + clause_save_as
             )(self.parser_id)
         )
 
@@ -45,7 +52,7 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=f"""{PLUGIN_NAMESPACE} list collection details '<collection_name_or_key>'""",
+                command=f"""{PLUGIN_NAMESPACE} list collections containing '<search_query>' [ save as '<filename.csv>' ]""",
                 description=description,
                 note=CMD_NOTE,
             )
@@ -59,4 +66,4 @@ class PluginCommand:
 
         # Execute
         cmd = parser.as_dict()
-        return list_collection_details(cmd_pointer, cmd)
+        return list_collections_containing(cmd_pointer, cmd)

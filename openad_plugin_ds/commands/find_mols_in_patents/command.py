@@ -5,29 +5,18 @@ import pyparsing as py
 from openad.core.help import help_dict_create_v2
 
 # Plugin
-from openad_grammar_def import str_strict_or_quoted, clause_using, clause_save_as
-from openad_plugin_ds.plugin_grammar_def import (
-    search,
-    f_or,
-    collection,
-    clause_show,
-    clause_estimate_only,
-    clause_return_as_data,
-)
+from openad_grammar_def import molecules, list_quoted, str_quoted, str_strict, clause_save_as
+from openad_plugin_ds.plugin_grammar_def import find, i_n, patents, f_rom, l_ist, file, dataframe
 from openad_plugin_ds.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
-from openad_plugin_ds.commands.search_collection.search_collection import search_collection
-from openad_plugin_ds.commands.search_collection.description import description
+from openad_plugin_ds.commands.find_mols_in_patents.find_mols_in_patents import find_molecules_in_patents
+from openad_plugin_ds.commands.find_mols_in_patents.description import description
 
 # Login
 from openad_plugin_ds.plugin_login import login
 
-command = f"""{PLUGIN_NAMESPACE} search collection '<collection_name_or_key>' for '<search_query>'
-    [ USING (<parameter>=<value> <parameter>=<value>) ] [ show (data | docs | data docs) ]
-    [ estimate only ] [ save as '<filename.csv>' ]"""
-
 
 class PluginCommand:
-    """Search collection..."""
+    """Find molecules in patents..."""
 
     category: str  # Category of command
     index: int  # Order in help
@@ -35,8 +24,8 @@ class PluginCommand:
     parser_id: str  # Internal unique identifier
 
     def __init__(self):
-        self.category = "Collections"
-        self.index = 4
+        self.category = "Molecules"
+        self.index = 2
         self.name = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         self.parser_id = f"plugin_{PLUGIN_KEY}_{self.name}"
 
@@ -47,15 +36,16 @@ class PluginCommand:
         statements.append(
             py.Forward(
                 py.Word(PLUGIN_NAMESPACE)
-                + search
-                + collection
-                + str_strict_or_quoted("collection_name_or_key")
-                + f_or
-                + str_strict_or_quoted("search_query")
-                + clause_using
-                + clause_show
-                + clause_estimate_only
-                # + clause_return_as_data
+                + find
+                + molecules
+                + i_n
+                + patents
+                + f_rom
+                + (
+                    (l_ist + list_quoted("list"))
+                    | (file + str_quoted("filename"))
+                    | (dataframe + str_strict("df_name"))
+                )
                 + clause_save_as
             )(self.parser_id)
         )
@@ -66,7 +56,11 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=command,
+                command=[
+                    f"""{PLUGIN_NAMESPACE} find molecules in patents from file '<filename.csv>' [ save as '<filename.csv>' ]""",
+                    f"""{PLUGIN_NAMESPACE} find molecules in patents from list ['<patent_id>','<patent_id>',...] [ save as '<filename.csv>' ]""",
+                    f"""{PLUGIN_NAMESPACE} find molecules in patents from dataframe <dataframe_name> [ save as '<filename.csv>' ]""",
+                ],
                 description=description,
                 note=CMD_NOTE,
             )
@@ -80,4 +74,4 @@ class PluginCommand:
 
         # Execute
         cmd = parser.as_dict()
-        return search_collection(cmd_pointer, cmd)
+        return find_molecules_in_patents(cmd_pointer, cmd)

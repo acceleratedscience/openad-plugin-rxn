@@ -1,7 +1,7 @@
 from openad_plugin_ds.plugin_params import CLAUSES
 
 
-description = f"""Display the available collections for a certain Deep Search domain, or a list of domains.
+description = f"""List the available collections for a certain Deep Search domain, or a list of domains.
 
 {CLAUSES["list_domains"]}
 

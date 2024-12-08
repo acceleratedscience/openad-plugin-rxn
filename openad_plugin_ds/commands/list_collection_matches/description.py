@@ -11,7 +11,7 @@ To learn more, run <cmd>ds search collection ?</cmd>.
 {CLAUSES["save_as"]}
 
 Examples:
-- <cmd>ds display collection matches for 'Ibuprofen'</cmd>
-- <cmd>ds display collection matches for '"blood-brain barrier"'</cmd>
-- <cmd>ds display collection matches for 'main-text.text:("power conversion efficiency" OR PCE) AND organ*'</cmd>
+- <cmd>ds list collection matches for 'Ibuprofen'</cmd>
+- <cmd>ds list collection matches for '"blood-brain barrier"'</cmd>
+- <cmd>ds list collection matches for 'main-text.text:("power conversion efficiency" OR PCE) AND organ*'</cmd>
 """

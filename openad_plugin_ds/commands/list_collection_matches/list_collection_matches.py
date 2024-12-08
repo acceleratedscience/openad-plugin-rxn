@@ -21,7 +21,7 @@ else:
     from tqdm import tqdm
 
 
-def display_collection_matches(cmd_pointer, cmd: dict):
+def list_collection_matches(cmd_pointer, cmd: dict):
     """
     Searches all collections for instances a given string.
 

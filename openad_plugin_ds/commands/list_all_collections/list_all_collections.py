@@ -12,7 +12,7 @@ from openad_plugin_ds.plugin_msg import msg as plugin_msg
 from openad_plugin_ds.plugin_params import PLUGIN_KEY
 
 
-def display_all_collections(cmd_pointer, cmd: dict):
+def list_all_collections(cmd_pointer, cmd: dict):
     """
     Display all collections.
 
@@ -95,8 +95,8 @@ def display_all_collections(cmd_pointer, cmd: dict):
             output_text(
                 "\n\n".join(
                     [
-                        "To see any particular collection's description, run:\n<cmd>ds display collection details '<collection_name_or_key>'</cmd>",
-                        "To see all collections' descriptions at once, run:\n<cmd>ds display all collections details</cmd>",
+                        "To see any particular collection's description, run:\n<cmd>ds list collection details '<collection_name_or_key>'</cmd>",
+                        "To see all collections' descriptions at once, run:\n<cmd>ds list all collections details</cmd>",
                     ]
                 ),
                 pad_btm=1,

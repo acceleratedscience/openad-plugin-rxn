@@ -6,21 +6,21 @@ from openad.core.help import help_dict_create_v2
 
 # Plugin
 from openad_grammar_def import clause_save_as
-from openad_plugin_ds.plugin_grammar_def import display, a_ll, collections, details
+from openad_plugin_ds.plugin_grammar_def import list, a_ll, domains
 from openad_plugin_ds.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
-from openad_plugin_ds.commands.display_all_collections.display_all_collections import display_all_collections
-from openad_plugin_ds.commands.display_all_collections.description import description
+from openad_plugin_ds.commands.list_all_domains.list_all_domains import list_all_domains
+from openad_plugin_ds.commands.list_all_domains.description import description
 
 
 class PluginCommand:
-    """Display all collections command"""
+    """Display collections for domain command"""
 
     index: int  # Order in help
     name: str  # Name of command = command dir name
     parser_id: str  # Internal unique identifier
 
     def __init__(self):
-        self.index = 0
+        self.index = 1
         self.name = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         self.parser_id = f"plugin_{PLUGIN_KEY}_{self.name}"
 
@@ -29,23 +29,14 @@ class PluginCommand:
 
         # Command definition
         statements.append(
-            py.Forward(
-                py.Word(PLUGIN_NAMESPACE)
-                + display
-                + a_ll
-                + collections
-                + py.Optional(details)("details")
-                + clause_save_as
-            )(self.parser_id)
+            py.Forward(py.Word(PLUGIN_NAMESPACE) + list + a_ll + domains + clause_save_as)(self.parser_id)
         )
-
-        # Command help
         grammar_help.append(
             help_dict_create_v2(
                 plugin_name=PLUGIN_NAME,
-                plugin_namespace=PLUGIN_NAMESPACE,
+                plugin_namespace=PLUGIN_NAMESPACE,  # <reverse> {PLUGIN_NAME} </reverse>
                 category="Collections",
-                command=f"""{PLUGIN_NAMESPACE} display all collections [ details ] [ save as '<filename.csv>' ]""",
+                command=f"""{PLUGIN_NAMESPACE} list all domains [ save as '<filename.csv>' ]""",
                 description=description,
                 note=CMD_NOTE,
             )
@@ -56,4 +47,4 @@ class PluginCommand:
 
         cmd = parser.as_dict()
         # print(cmd)
-        return display_all_collections(cmd_pointer, cmd)
+        return list_all_domains(cmd_pointer, cmd)

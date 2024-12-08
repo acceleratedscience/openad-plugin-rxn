@@ -33,14 +33,14 @@ For example, instead of 'blood-brain barrier', search for:
 """,
 
 
-# display_all_collections
+# list_all_collections
 "err_no_collections_available": "No collections found... something is wrong.",
 
 
-# display_collection_details
+# list_collection_details
 "no_collection_found_by_name": lambda collection_name_or_key: "No collection found with name of key {collection_name_or_key}",
 
-# display_collections_for_domain
+# list_collections_for_domain
 "no_collection_found_by_domain": lambda domain: "No collection found under the '{domain}' domain",
 
 

@@ -36,7 +36,7 @@ class PluginCommand:
     parser_id: str  # Internal unique identifier
 
     def __init__(self):
-        self.index = 0
+        self.index = 1
         self.name = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         self.parser_id = f"plugin_{PLUGIN_KEY}_{self.name}"
 

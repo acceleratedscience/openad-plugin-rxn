@@ -9,7 +9,7 @@ from openad_plugin_ds.plugin_msg import msg as plugin_msg
 from openad_plugin_ds.plugin_params import PLUGIN_KEY
 
 
-def display_collection_details(cmd_pointer, cmd: dict):
+def list_collection_details(cmd_pointer, cmd: dict):
     """
     Displays the details for a given collection.
 

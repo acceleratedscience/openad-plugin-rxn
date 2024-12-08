@@ -30,7 +30,7 @@ description = f"""Search a given collection in the Deep Search repository.
 <cmd>slop=<integer></cmd>
     The slop amount of your elastic query. This is the maximum number of positions allowed between matching tokens. Recommended to be between 0-5, defaults to 3.
     Note that a higher slop will slow down the search process.
-    Example: searching for 'power efficiency' will match 'power conversion efficiency' with a slop of 1 or higher, but not with a slop of 0.
+    Eg. searching for 'power efficiency' will match 'power conversion efficiency' with a slop of 1 or higher, but not with a slop of 0.
 
 <cmd>limit_results=<integer></cmd>
     Limit the number of results returned. Note that this does not speed up the search process.
@@ -71,7 +71,7 @@ Compare result count with differenty slop amounts:
 <cmd>ds search collection 'arxiv-abstract' for '"power efficiency"' USING (slop=1) estimate only</cmd>
 <cmd>ds search collection 'arxiv-abstract' for '"power efficiency"' USING (slop=5) estimate only</cmd>
 
-Search the PubChem archive for 'Ibuprofen', display related molecules' data, the inspect molecules in the GUI.
+Search the PubChem archive for 'Ibuprofen', list related molecules' data, then inspect molecules in the GUI.
 <cmd>ds search collection 'pubchem' for 'Ibuprofen' show (data)</cmd>
 <cmd>result open</cmd>
 

@@ -28,6 +28,6 @@ CLAUSES = {
     # "using": "Note: The <cmd>USING</cmd> clause requires all enclosed parameters to be defined in the same order as listed below.",
     # "using": "Note: All enclosed parameters should be defined in the same order as listed below.",
     "save_as": "Use the <cmd>save as</cmd> clause to save the results as a csv file in your current workspace.",
-    "list_collections": "Run <cmd>display all collections</cmd> to list available collections.",
-    "list_domains": "Use the command <cmd>display all collections</cmd> to find available domains.",
+    "list_collections": "Run <cmd>list all collections</cmd> to list available collections.",
+    "list_domains": "Use the command <cmd>list all collections</cmd> to find available domains.",
 }

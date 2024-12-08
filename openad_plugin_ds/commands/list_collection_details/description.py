@@ -5,6 +5,6 @@ description = f"""Display the details for a collection by providing the collecti
 {CLAUSES["list_collections"]}
 
 Examples:
-- <cmd>ds display collection details 'Patents from USPTO'</cmd>
-- <cmd>ds display collection details 'patent-uspto'</cmd>
+- <cmd>ds list collection details 'Patents from USPTO'</cmd>
+- <cmd>ds list collection details 'patent-uspto'</cmd>
 """

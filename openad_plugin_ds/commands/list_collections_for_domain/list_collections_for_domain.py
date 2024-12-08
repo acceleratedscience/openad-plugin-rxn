@@ -13,7 +13,7 @@ from openad_plugin_ds.plugin_msg import msg as plugin_msg
 from openad_plugin_ds.plugin_params import PLUGIN_KEY
 
 
-def display_collections_for_domain(cmd_pointer, cmd: dict):
+def list_collections_for_domain(cmd_pointer, cmd: dict):
     """
     Display all collections from a given DeepSearch domain.
 

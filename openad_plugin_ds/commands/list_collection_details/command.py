@@ -6,10 +6,10 @@ from openad.core.help import help_dict_create_v2
 
 # Plugin
 from openad_grammar_def import str_quoted, clause_save_as
-from openad_plugin_ds.plugin_grammar_def import display, collection, details
+from openad_plugin_ds.plugin_grammar_def import list, collection, details
 from openad_plugin_ds.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
-from openad_plugin_ds.commands.display_collection_details.display_collection_details import display_collection_details
-from openad_plugin_ds.commands.display_collection_details.description import description
+from openad_plugin_ds.commands.list_collection_details.list_collection_details import list_collection_details
+from openad_plugin_ds.commands.list_collection_details.description import description
 
 
 class PluginCommand:
@@ -30,7 +30,7 @@ class PluginCommand:
         # Command definition
         statements.append(
             py.Forward(
-                py.Word(PLUGIN_NAMESPACE) + display + collection + details + str_quoted("collection") + clause_save_as
+                py.Word(PLUGIN_NAMESPACE) + list + collection + details + str_quoted("collection") + clause_save_as
             )(self.parser_id)
         )
 
@@ -40,7 +40,7 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category="Collections",
-                command=f"""{PLUGIN_NAMESPACE} display collection details '<collection_name_or_key>'""",
+                command=f"""{PLUGIN_NAMESPACE} list collection details '<collection_name_or_key>'""",
                 description=description,
                 note=CMD_NOTE,
             )
@@ -51,4 +51,4 @@ class PluginCommand:
 
         cmd = parser.as_dict()
         # print(cmd)
-        return display_collection_details(cmd_pointer, cmd)
+        return list_collection_details(cmd_pointer, cmd)

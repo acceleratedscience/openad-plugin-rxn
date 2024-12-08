@@ -13,7 +13,7 @@ from openad_plugin_ds.plugin_msg import msg as plugin_msg
 from openad_plugin_ds.plugin_params import PLUGIN_KEY
 
 
-def display_all_domains(cmd_pointer, cmd: dict):
+def list_all_domains(cmd_pointer, cmd: dict):
     """
     Display all available domains.
 

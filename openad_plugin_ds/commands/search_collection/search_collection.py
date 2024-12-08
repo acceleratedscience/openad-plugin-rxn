@@ -1,10 +1,10 @@
+# To do: Remove the "return_as_data" functionality, because it is redundant after we introduced the %openadd data magic command.
+# Currently the functionality is still present, but it was removed from the documentation.
+
 import re
 import os
 import json
-import math
 import base64
-import readline
-import numpy as np
 import pandas as pd
 import urllib.parse
 from copy import deepcopy
@@ -95,7 +95,7 @@ def search_collection(cmd_pointer, cmd: dict):
     collection_name_list = [c.name for c in collections]
     result = [
         {
-            "Domains": " / ".join(c.metadata.domain),
+            "Domain": " / ".join(c.metadata.domain),
             "Collection Name": c.name,
             "Collection Key": c.source.index_key,
             "elastic_id": c.source.elastic_id,

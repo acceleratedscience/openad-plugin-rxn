@@ -52,7 +52,9 @@ class PluginCommand:
         # Command help
         grammar_help.append(
             help_dict_create_v2(
-                category=PLUGIN_NAME,
+                plugin_name=PLUGIN_NAME,
+                plugin_namespace=PLUGIN_NAMESPACE,
+                category="Search Molecules",
                 command=f"{PLUGIN_NAMESPACE} search for similar molecules to <smiles> [ save as '<filename.csv>' ]",
                 description=description,
                 note=CMD_NOTE,

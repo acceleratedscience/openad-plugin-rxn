@@ -1,7 +1,6 @@
 """Login Library for the Deepsearch Plugin"""
 
 import os
-import datetime
 from datetime import datetime, timezone
 import time
 import requests

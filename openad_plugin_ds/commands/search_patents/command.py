@@ -53,7 +53,9 @@ class PluginCommand:
         # Command help
         grammar_help.append(
             help_dict_create_v2(
-                category=PLUGIN_NAME,
+                plugin_name=PLUGIN_NAME,
+                plugin_namespace=PLUGIN_NAMESPACE,
+                category="Search Patents",
                 command=f"{PLUGIN_NAMESPACE} search for patents containing molecule <smiles> | <inchi> | <inchikey> [ save as '<filename.csv>' ]",
                 description=description,
                 note=CMD_NOTE,

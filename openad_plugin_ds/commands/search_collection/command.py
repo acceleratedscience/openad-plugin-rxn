@@ -63,7 +63,9 @@ class PluginCommand:
         # Command help
         grammar_help.append(
             help_dict_create_v2(
-                category=PLUGIN_NAME,
+                plugin_name=PLUGIN_NAME,
+                plugin_namespace=PLUGIN_NAMESPACE,
+                category="Search Collections",
                 command=command,
                 description=description,
                 note=CMD_NOTE,

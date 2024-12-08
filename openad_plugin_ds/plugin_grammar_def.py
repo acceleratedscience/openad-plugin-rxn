@@ -17,6 +17,13 @@ substructure = py.CaselessKeyword("substructure")
 instances = py.CaselessKeyword("instances")
 of = py.CaselessKeyword("of")
 collection = py.CaselessKeyword("collection")
+collections = py.CaselessKeyword("collections")
+display = py.CaselessKeyword("display")
+matches = py.CaselessKeyword("matches")
+a_ll = py.CaselessKeyword("all")
+details = py.CaselessKeyword("details")
+domain = py.CaselessKeyword("domain")
+domains = py.CaselessKeyword("domains")
 
 # Search collection
 clause_show = py.Optional(

@@ -57,28 +57,42 @@ class PluginCommand:
         # Command help
         grammar_help.append(
             help_dict_create_v2(
-                category=PLUGIN_NAME,
-                command=f"""{PLUGIN_NAMESPACE} search for molecules in patents from list ['<patent_id>','<patent_id>',...] [ save as '<filename.csv>' ]""",
+                plugin_name=PLUGIN_NAME,
+                plugin_namespace=PLUGIN_NAMESPACE,
+                category="Search Molecules",
+                command=[
+                    f"""{PLUGIN_NAMESPACE} search for molecules in patents from list ['<patent_id>','<patent_id>',...] [ save as '<filename.csv>' ]""",
+                    f"""{PLUGIN_NAMESPACE} search for molecules in patents from file '<filename.csv>' [ save as '<filename.csv>' ]""",
+                    f"""{PLUGIN_NAMESPACE} search for molecules in patents from dataframe <dataframe_name> [ save as '<filename.csv>' ]""",
+                ],
                 description=description,
                 note=CMD_NOTE,
             )
         )
-        grammar_help.append(
-            help_dict_create_v2(
-                category=PLUGIN_NAME,
-                command=f"""{PLUGIN_NAMESPACE} search for molecules in patents from file '<filename.csv>' [ save as '<filename.csv>' ]""",
-                description=description,
-                note=CMD_NOTE,
-            )
-        )
-        grammar_help.append(
-            help_dict_create_v2(
-                category=PLUGIN_NAME,
-                command=f"""{PLUGIN_NAMESPACE} search for molecules in patents from dataframe <dataframe_name> [ save as '<filename.csv>' ]""",
-                description=description,
-                note=CMD_NOTE,
-            )
-        )
+        # grammar_help.append(
+        #     help_dict_create_v2(
+        #         category=PLUGIN_NAME,
+        #         command=f"""{PLUGIN_NAMESPACE} search for molecules in patents from list ['<patent_id>','<patent_id>',...] [ save as '<filename.csv>' ]""",
+        #         description=description,
+        #         note=CMD_NOTE,
+        #     )
+        # )
+        # grammar_help.append(
+        #     help_dict_create_v2(
+        #         category=PLUGIN_NAME,
+        #         command=f"""{PLUGIN_NAMESPACE} search for molecules in patents from file '<filename.csv>' [ save as '<filename.csv>' ]""",
+        #         description=description,
+        #         note=CMD_NOTE,
+        #     )
+        # )
+        # grammar_help.append(
+        #     help_dict_create_v2(
+        #         category=PLUGIN_NAME,
+        #         command=f"""{PLUGIN_NAMESPACE} search for molecules in patents from dataframe <dataframe_name> [ save as '<filename.csv>' ]""",
+        #         description=description,
+        #         note=CMD_NOTE,
+        #     )
+        # )
 
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""

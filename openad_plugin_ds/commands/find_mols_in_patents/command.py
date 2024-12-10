@@ -57,9 +57,9 @@ class PluginCommand:
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
                 command=[
-                    f"""{PLUGIN_NAMESPACE} find molecules in patents from file '<filename.csv>' [ save as '<filename.csv>' ]""",
-                    f"""{PLUGIN_NAMESPACE} find molecules in patents from list ['<patent_id>','<patent_id>',...] [ save as '<filename.csv>' ]""",
-                    f"""{PLUGIN_NAMESPACE} find molecules in patents from dataframe <dataframe_name> [ save as '<filename.csv>' ]""",
+                    f"{PLUGIN_NAMESPACE} find molecules in patents from file '<filename.csv>' [ save as '<filename.csv>' ]",
+                    f"{PLUGIN_NAMESPACE} find molecules in patents from list ['<patent_id>','<patent_id>',...] [ save as '<filename.csv>' ]",
+                    f"{PLUGIN_NAMESPACE} find molecules in patents from dataframe <dataframe_name> [ save as '<filename.csv>' ]",
                 ],
                 description=description,
                 note=CMD_NOTE,

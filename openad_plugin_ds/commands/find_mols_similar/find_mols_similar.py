@@ -4,7 +4,7 @@ import pandas as pd
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.smols.smol_cache import create_analysis_record, save_result
 from openad.smols.smol_functions import canonicalize, valid_smiles
-from openad.helpers.files import save_df_as_csv
+from openad.helpers.jupyter import save_df_as_csv
 from openad.helpers.output import output_success, output_error, output_table
 from openad.helpers.jupyter import jup_display_input_molecule
 

@@ -1,6 +1,6 @@
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
-from openad.helpers.files import save_df_as_csv
+from openad.helpers.jupyter import save_df_as_csv
 from openad.helpers.general import pretty_nr, pretty_date
 from openad.helpers.output import output_text, output_error
 

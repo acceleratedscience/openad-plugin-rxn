@@ -13,7 +13,7 @@ from copy import deepcopy
 from openad.plugins.style_parser import style, strip_tags
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.helpers.general import confirm_prompt
-from openad.helpers.files import save_df_as_csv
+from openad.helpers.jupyter import save_df_as_csv
 from openad.helpers.credentials import load_credentials
 from openad.helpers.output import output_text, output_table, output_error, output_warning
 

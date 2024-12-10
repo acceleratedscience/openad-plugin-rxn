@@ -3,7 +3,7 @@ import pandas as pd
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.helpers.h_data import col_from_df, csv_to_df
-from openad.helpers.files import save_df_as_csv
+from openad.helpers.jupyter import save_df_as_csv
 from openad.helpers.output import output_error, output_table, output_success, output_warning
 
 # Plugin

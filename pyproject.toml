@@ -1,6 +1,3 @@
-# Fill in the fields below, then delete this line and the next.
-# https://packaging.python.org/en/latest/guides/writing-pyproject-toml
-
 [tool.poetry]
 name = "openad_plugin_ds"
 version = "0.0.1"
@@ -13,9 +10,9 @@ maintainers = [
   "Moenen Erbuer <moenen.erbuer@ibm.com>",
   "Phil Downey <phil.downey1@ibm.com>"
 ]
-homepage = "https://research.ibm.com/projects/deep-search"
+homepage = "https://ds4sd.github.io/"
 documentation = "https://github.com/DS4SD/deepsearch-toolkit"
-repository = "https://github.com/DS4SD/deepsearch-toolkit"
+repository = "https://github.com/DS4SD"
 readme = "README.md"
 license = "MIT"
 classifiers = [

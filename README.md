@@ -1,6 +1,6 @@
 # OpenAD Plugin - Deep Search
 
-__This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-toolkit).__
+_This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-toolkit)._
 
 <br>
 
@@ -17,7 +17,7 @@ Deep Search (aka DS4SD) leverages state-of-the-art AI methods to continuously co
 This plugin exposes a subset of Deep Search functionality to the OpenAD client, more specifically:
 - Finding molecules by similarity or substructure
 - Scanning patents for molecules, or find patents containing a certain molecule
-- List and search available Deep Search collections like arXiv abstracts, PubChem or USPTO patents and more.
+- List and search available Deep Search collections like arXiv abstracts, PubChem or USPTO patents and more
 
 <br>
 

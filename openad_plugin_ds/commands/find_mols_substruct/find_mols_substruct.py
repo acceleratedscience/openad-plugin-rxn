@@ -4,7 +4,6 @@ import pandas as pd
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.smols.smol_functions import valid_smiles
 from openad.helpers.output import output_success, output_error, output_table
-from openad.helpers.output_msgs import msg
 from openad.helpers.jupyter import save_df_as_csv
 from openad.helpers.jupyter import jup_display_input_molecule
 
@@ -35,7 +34,7 @@ def find_substructure_molecules(cmd_pointer, cmd: dict):
     # Parse identifier
     smiles = cmd["smiles"][0]
     if not valid_smiles(smiles):
-        return output_error(msg("err_invalid_identifier"), return_val=False)
+        return output_error(plugin_msg("err_invalid_identifier"), return_val=False)
 
     # Fetch results from API
     try:

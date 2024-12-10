@@ -1,14 +1,14 @@
 # OpenAD Plugin - Deep Search
 
-_This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-toolkit)._
+_This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-toolkit)_
 
 <br>
 
 ## About Deep Search
 
-Deep Search (aka DS4SD) leverages state-of-the-art AI methods to continuously collect, convert, enrich, and link large document collections. You can use it for both public and proprietary PDF documents.
+Deep Search (aka DS4SD) is developed at IBM Research and leverages state-of-the-art AI methods to continuously collect, convert, enrich, and link large document collections. You can use it for both public and proprietary PDF documents.
 
-[ds4sd.github.io](https://ds4sd.github.io/) / [GitHub](https://github.com/DS4SD)
+[ds4sd.github.io](https://ds4sd.github.io/) / [GitHub](https://github.com/DS4SD) / [IBM Research](https://research.ibm.com/projects/deep-search)
 
 <br>
 

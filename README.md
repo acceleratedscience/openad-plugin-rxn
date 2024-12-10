@@ -6,10 +6,9 @@ __This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-to
 
 ## About Deep Search
 
-Deep Search leverages state-of-the-art AI methods to continuously collect, convert, enrich, and link large document collections. You can use it for both public and proprietary PDF documents.
+Deep Search (aka DS4SD) leverages state-of-the-art AI methods to continuously collect, convert, enrich, and link large document collections. You can use it for both public and proprietary PDF documents.
 
-[Website](https://ds4sd.github.io/)<br>
-[GitHub](https://github.com/DS4SD)
+[ds4sd.github.io](https://ds4sd.github.io/) / [GitHub](https://github.com/DS4SD)
 
 <br>
 

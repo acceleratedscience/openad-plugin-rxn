@@ -1,3 +1,5 @@
+import pandas as pd
+
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.helpers.jupyter import save_df_as_csv
@@ -59,20 +61,25 @@ def list_collection_details(cmd_pointer, cmd: dict):
                 f"<yellow>Domain   </yellow> {' / '.join(collection.metadata.domain)}",
                 f"<yellow>Type     </yellow> {collection.metadata.type}",
                 f"<yellow>Entries  </yellow> {pretty_nr(collection.documents)}",
-                f"<yellow>Created  </yellow> {pretty_date(collection.metadata.created.timestamp(), 'pretty', time=False)}",
+                f"<yellow>Created  </yellow> {pretty_date(collection.metadata.created.timestamp(), 'pretty', include_time=False)}",
             ]
         )
         output_text(print_str, return_val=False, width=80, pad=1)
 
     # Return data for API
     else:
-        return {
-            "Collection Name": collection.name,
-            "Collection Key": collection.source.index_key,
-            "Description": collection.metadata.description,
-            "Domain": " / ".join(collection.metadata.domain),
-            "Type": collection.metadata.type,
-            "Entries": pretty_nr(collection.documents),
-            "Created": collection.metadata.created.strftime("%Y-%m-%d"),
-            "Created timestamp": collection.metadata.created,
-        }
+        results_table = [
+            {
+                "Collection Name": collection.name,
+                "Collection Key": collection.source.index_key,
+                "Description": collection.metadata.description,
+                "Domain": " / ".join(collection.metadata.domain),
+                "Type": collection.metadata.type,
+                "Entries": pretty_nr(collection.documents),
+                "Created": collection.metadata.created.strftime("%Y-%m-%d"),
+                "Created timestamp": collection.metadata.created,
+            }
+        ]
+        df = pd.DataFrame(results_table)
+        df = df.fillna("")  # Replace NaN with empty string
+        return df

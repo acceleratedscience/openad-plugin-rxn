@@ -80,7 +80,7 @@ def list_all_collections(cmd_pointer, cmd: dict):
                             f"<yellow>Domain   </yellow> {collection['Domain']}",
                             f"<yellow>Type     </yellow> {collection['Type']}",
                             f"<yellow>Entries  </yellow> {collection['Entries']}",
-                            f"<yellow>Created  </yellow> {pretty_date(collection['created_timestamp'].timestamp(), 'pretty', time=False)}",
+                            f"<yellow>Created  </yellow> {pretty_date(collection['created_timestamp'].timestamp(), 'pretty', include_time=False)}",
                         ]
                     )
                     + "\n"

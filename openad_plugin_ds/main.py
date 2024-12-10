@@ -10,7 +10,7 @@ class OpenADPlugin:
     statements = []
     help = []
 
-    def __init__(self, cmd_pointer=None):
+    def __init__(self):
         self.statements = []
         self.help = []
         plugin_commands = []

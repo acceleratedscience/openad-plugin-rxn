@@ -19,10 +19,9 @@ description = f"""Search a given collection in the Deep Search repository.
         <cmd>"</cmd>  Wrap a number of tokens to signify a phrase for searching
         <cmd>*</cmd>  Prefix query when placed at the end of a term
         <cmd>()</cmd> Grouping for precedence
-        <cmd>~N</cmd> Edit distance (fuzziness) when placed after a word,
-           or slop amount when placed after a phrase
-    More information can be found at:
-    https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-simple-query-string-query.html#simple-query-string-query-notes
+        <cmd>~N</cmd> Edit distance (fuzziness) when placed after a word, or slop amount when placed after a phrase
+           More information can be found at:
+           https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-simple-query-string-query.html#simple-query-string-query-notes
 
     
 <h1>The USING clause</h1>
@@ -64,19 +63,20 @@ description = f"""Search a given collection in the Deep Search repository.
 <h1>Examples</h1>
 
 Look for documents that contain discussions on power conversion efficiency:
-<cmd>ds search collection 'arxiv-abstract' for 'ide("power conversion efficiency" OR PCE) AND organ*' USING (limit_results=10 slop=0) show (docs)</cmd>
+- <cmd>ds search collection 'arxiv-abstract' for 'ide("power conversion efficiency" OR PCE) AND organ*' USING (limit_results=10 slop=0) show (docs)</cmd>
 
 Compare result count with differenty slop amounts:
-<cmd>ds search collection 'arxiv-abstract' for '"power efficiency"' USING (slop=0) estimate only</cmd>
-<cmd>ds search collection 'arxiv-abstract' for '"power efficiency"' USING (slop=1) estimate only</cmd>
-<cmd>ds search collection 'arxiv-abstract' for '"power efficiency"' USING (slop=5) estimate only</cmd>
+- <cmd>ds search collection 'arxiv-abstract' for '"power efficiency"' USING (slop=0) estimate only</cmd>
+- <cmd>ds search collection 'arxiv-abstract' for '"power efficiency"' USING (slop=1) estimate only</cmd>
+- <cmd>ds search collection 'arxiv-abstract' for '"power efficiency"' USING (slop=5) estimate only</cmd>
 
 Search the PubChem archive for 'Ibuprofen', list related molecules' data, then inspect molecules in the GUI.
-<cmd>ds search collection 'pubchem' for 'Ibuprofen' show (data)</cmd>
-<cmd>result open</cmd>
+- <cmd>ds search collection 'pubchem' for 'Ibuprofen' show (data)</cmd>
+- <cmd>result open</cmd>
 
 Search for patents which mention a specific SMILES molecule:
-<cmd>ds search collection 'patent-uspto' for '"CC(CCO)CCCC(C)C"' show (data)</cmd>
+- <cmd>ds search collection 'patent-uspto' for '"CC(CCO)CCCC(C)C"' show (data)</cmd>
+- <cmd>ds search collection 'patent-uspto' for '"CC(CCO)CCCC(C)C"' show (docs)</cmd>
 """
 
 # <cmd>return as data</cmd>

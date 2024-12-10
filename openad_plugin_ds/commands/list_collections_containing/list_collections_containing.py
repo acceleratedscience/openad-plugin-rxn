@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 # OpenAD
@@ -14,12 +13,6 @@ from openad_plugin_ds.plugin_params import PLUGIN_KEY
 from deepsearch.cps.queries import DataQuery
 from deepsearch.cps.client.components.queries import RunQueryError
 
-# TQDM progress bar
-if GLOBAL_SETTINGS["display"] == "notebook":
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
-
 
 def list_collections_containing(cmd_pointer, cmd: dict):
     """
@@ -32,6 +25,12 @@ def list_collections_containing(cmd_pointer, cmd: dict):
     cmd : dict
         The command dictionary.
     """
+    # TQDM progress bar
+    # Note: needs to be imported inside function to recognize notebook display context
+    if GLOBAL_SETTINGS["display"] == "notebook":
+        from tqdm.notebook import tqdm
+    else:
+        from tqdm import tqdm
 
     # Define the DeepSearch API
     api = cmd_pointer.login_settings["toolkits_api"][cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)]
@@ -47,7 +46,15 @@ def list_collections_containing(cmd_pointer, cmd: dict):
 
     # Search all collections for the given string, using tqdm to display a progress bar.
     results_table = []
-    for c in (pbar := tqdm(collections, total=len(collections), bar_format="{l_bar}{bar}", leave=False)):
+    for c in (
+        pbar := tqdm(
+            collections,
+            total=len(collections),
+            bar_format="{l_bar}{bar}",
+            leave=False,
+            disable=GLOBAL_SETTINGS["display"] == "api",
+        )
+    ):
         pbar.set_description(f"Querying {c.name}")
 
         # print(c.metadata.description)

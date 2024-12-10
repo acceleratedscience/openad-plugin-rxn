@@ -17,12 +17,6 @@ from openad.helpers.jupyter import save_df_as_csv
 from openad.helpers.credentials import load_credentials
 from openad.helpers.output import output_text, output_table, output_error, output_warning
 
-# TQDM progress bar
-if GLOBAL_SETTINGS["display"] == "notebook":
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
-
 # Plugin
 from openad_plugin_ds.plugin_msg import msg as plugin_msg
 from openad_plugin_ds.plugin_params import PLUGIN_KEY
@@ -55,6 +49,13 @@ def search_collection(cmd_pointer, cmd: dict):
     cmd : dict
         The command dictionary.
     """
+
+    # TQDM progress bar
+    # Note: needs to be imported inside function to recognize notebook display context
+    if GLOBAL_SETTINGS["display"] == "notebook":
+        from tqdm.notebook import tqdm
+    else:
+        from tqdm import tqdm
 
     # Define the DeepSearch API
     api = cmd_pointer.login_settings["toolkits_api"][cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)]
@@ -199,7 +200,13 @@ def search_collection(cmd_pointer, cmd: dict):
     except Exception as err:  # pylint: disable=broad-exception-caught
         output_error(plugin_msg("err_deepsearch", err), return_val=False)
         return False
-    for result_page in tqdm(cursor, total=expected_pages, bar_format="{l_bar}{bar}", leave=False):
+    for result_page in tqdm(
+        cursor,
+        total=expected_pages,
+        bar_format="{l_bar}{bar}",
+        leave=False,
+        disable=GLOBAL_SETTINGS["display"] == "api",
+    ):
         all_results.extend(result_page.outputs["data_outputs"])
 
         # Count number of results per year

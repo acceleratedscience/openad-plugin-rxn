@@ -67,4 +67,4 @@ class PluginCommand:
 
         # Execute
         cmd = parser.as_dict()
-        find_substructure_molecules(cmd_pointer, cmd)
+        return find_substructure_molecules(cmd_pointer, cmd)

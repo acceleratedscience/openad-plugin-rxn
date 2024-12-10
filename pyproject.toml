@@ -2,7 +2,7 @@
 name = "openad_plugin_ds"
 version = "0.0.1"
 description = "Deep Search functionality for OpenAD"
-keywords= ["deep", "search", "openad", "ibm", "research", "molecule", "chemistry", "patent"]
+keywords= ["deep", "search", "openad", "ibm", "research", "molecule", "chemistry", "patent", "substructure"]
 authors = [
   "Moenen Erbuer <moenen.erbuer@ibm.com>",
 ]

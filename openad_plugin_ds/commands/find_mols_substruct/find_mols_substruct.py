@@ -34,7 +34,7 @@ def find_substructure_molecules(cmd_pointer, cmd: dict):
     # Parse identifier
     smiles = cmd["smiles"][0]
     if not valid_smiles(smiles):
-        return output_error(plugin_msg("err_invalid_identifier"), return_val=False)
+        return output_error(plugin_msg("err_invalid_identifier"))
 
     # Fetch results from API
     try:
@@ -43,7 +43,7 @@ def find_substructure_molecules(cmd_pointer, cmd: dict):
             query_type=MolQueryType.SUBSTRUCTURE,
         )
         resp = api.queries.run(query)
-        # raise Exception('This is a test error')
+        # raise Exception("This is a test error")
     except Exception as err:  # pylint: disable=broad-exception-caught
         return output_error(plugin_msg("err_deepsearch", err))
 
@@ -67,7 +67,7 @@ def find_substructure_molecules(cmd_pointer, cmd: dict):
 
     # No results found
     if not results_table:
-        return output_error("No molecules found with the provided substructure.")
+        return output_error(plugin_msg("err_no_substr_mols"))
 
     # Success
     output_success(

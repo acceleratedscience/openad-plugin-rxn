@@ -48,13 +48,13 @@ def find_molecules_in_patents(cmd_pointer, cmd: dict):
                 patent_id_list = col_from_df(df, "patentid")
             if not patent_id_list:
                 raise ValueError("No patent ID column found (patent id, patent_id, patentid)")
-            # raise Exception('This is a test error')
+            # raise FileNotFoundError("This is a test error")
+            # raise Exception("This is a test error")
         except FileNotFoundError:
-            output_error(plugin_msg("err_file_not_found", cmd["filename"]), return_val=False)
+            return output_error(plugin_msg("err_file_not_found", cmd["filename"]))
         except Exception as err:  # pylint: disable=broad-exception-caught
             src_type = "file" if "filename" in cmd else "dataframe"
-            output_error([plugin_msg("err_no_patent_ids_found", src_type), err], return_val=False)
-            return
+            return output_error([plugin_msg("err_no_patent_ids_found", src_type), err])
 
     # Empty list
     if not patent_id_list:
@@ -70,8 +70,7 @@ def find_molecules_in_patents(cmd_pointer, cmd: dict):
         resp = api.queries.run(query)
         # raise Exception('This is a test error')
     except Exception as err:  # pylint: disable=broad-except
-        output_error(plugin_msg("err_deepsearch", err), return_val=False)
-        return
+        return output_error(plugin_msg("err_deepsearch", err))
 
     # Compile results
     results_table = []

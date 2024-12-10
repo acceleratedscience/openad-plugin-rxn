@@ -34,7 +34,7 @@ def find_similar_molecules(cmd_pointer, cmd):
     # Parse identifier
     smiles = cmd["smiles"][0]
     if not valid_smiles(smiles):
-        return output_error(plugin_msg("err_invalid_identifier"), return_val=False)
+        return output_error(plugin_msg("err_invalid_identifier"))
     else:
         canonical_smiles = canonicalize(smiles)
 
@@ -46,10 +46,9 @@ def find_similar_molecules(cmd_pointer, cmd):
         )
 
         resp = api.queries.run(query)
-        # raise Exception('This is a test error')
+        # raise Exception("This is a test error")
     except Exception as err:  # pylint: disable=broad-exception-caught
-        output_error(plugin_msg("err_deepsearch", err), return_val=False)
-        return False
+        return output_error(plugin_msg("err_deepsearch", err))
 
     # Parse results
     results_table = []
@@ -71,7 +70,7 @@ def find_similar_molecules(cmd_pointer, cmd):
 
     # No results found
     if not results_table:
-        return output_error("No similar molecules found.")
+        return output_error(plugin_msg("err_no_similar_mols"))
 
     # Success
     output_success(

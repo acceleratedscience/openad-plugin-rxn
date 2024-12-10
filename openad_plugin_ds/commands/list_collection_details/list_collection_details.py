@@ -29,10 +29,9 @@ def list_collection_details(cmd_pointer, cmd: dict):
     # Fetch all collections
     try:
         collections = api.elastic.list()
-        # raise Exception('This is a test error')
+        # raise Exception("This is a test error")
     except Exception as err:  # pylint: disable=broad-exception-caught
-        output_error(plugin_msg("err_deepsearch", err), return_val=False)
-        return False
+        return output_error(plugin_msg("err_deepsearch", err))
 
     # Find specified collection
     collection = None
@@ -46,8 +45,7 @@ def list_collection_details(cmd_pointer, cmd: dict):
 
     # Error
     if not collection:
-        output_error(plugin_msg("no_collection_found_by_name"), return_val=False)
-        return False
+        return output_error(plugin_msg("err_no_collection_found_by_name", cmd["collection"]))
 
     # Display results in CLI & Notebook
     if GLOBAL_SETTINGS["display"] != "api":

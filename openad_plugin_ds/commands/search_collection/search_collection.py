@@ -110,17 +110,17 @@ def search_collection(cmd_pointer, cmd: dict):
 
     # Validate collection key
     if collection_name_or_key not in collection_key_list:
-        output_error("Invalid collection key or name, please choose from the following:", return_val=False)
+        output_error(plugin_msg("err_invalid_collection_id"), return_val=False)
         collectives = pd.DataFrame(result)
         output_table(collectives, is_data=False, return_val=False)
-        return False
+        return
 
     # Validate elastic id (currently only default is allowed)
     if elastic_id not in elastic_list:
-        output_error("Invalid elastic_id, please choose from the following:", return_val=False)
+        output_error(plugin_msg("err_invalid_elastic_id"), return_val=False)
         collectives = pd.DataFrame(result)
         output_table(collectives, is_data=False, return_val=False)
-        return False
+        return
 
     # Define the data collection to be queried
     data_collection = ElasticDataCollectionSource(elastic_id=elastic_id, index_key=collection_name_or_key)
@@ -196,10 +196,9 @@ def search_collection(cmd_pointer, cmd: dict):
     all_aggs = {}
     try:
         cursor = api.queries.run_paginated_query(query)
-        # raise Exception('This is a test error')
+        # raise Exception("This is a test error")
     except Exception as err:  # pylint: disable=broad-exception-caught
-        output_error(plugin_msg("err_deepsearch", err), return_val=False)
-        return False
+        return output_error(plugin_msg("err_deepsearch", err))
     for result_page in tqdm(
         cursor,
         total=expected_pages,

@@ -30,10 +30,9 @@ def list_collections_for_domain(cmd_pointer, cmd: dict):
     try:
         collections = api.elastic.list()
         collections.sort(key=lambda c: c.name.lower())
-        # raise Exception('This is a test error')
+        # raise Exception("This is a test error")
     except Exception as err:  # pylint: disable=broad-exception-caught
-        output_error(plugin_msg("err_deepsearch", err), return_val=False)
-        return False
+        return output_error(plugin_msg("err_deepsearch", err))
 
     # Compile results table
     results_table = [
@@ -67,7 +66,7 @@ def list_collections_for_domain(cmd_pointer, cmd: dict):
     # No results found
     # results_table = [] # Keep here for testing
     if not results_table:
-        return output_error(plugin_msg("no_collection_found_by_domain"), return_val=False)
+        return output_error(plugin_msg("err_no_collection_found_by_domain", domain_list))
 
     df = pd.DataFrame(results_table)
     df = df.fillna("")  # Replace NaN with empty string

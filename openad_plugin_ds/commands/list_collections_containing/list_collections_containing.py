@@ -39,10 +39,9 @@ def list_collections_containing(cmd_pointer, cmd: dict):
     try:
         collections = api.elastic.list()
         collections.sort(key=lambda c: c.name.lower())
-        # raise Exception('This is a test error')
+        # raise Exception("This is a test error")
     except Exception as err:  # pylint: disable=broad-exception-caught
-        output_error(plugin_msg("err_deepsearch", err), return_val=False)
-        return False
+        return output_error(plugin_msg("err_deepsearch", err))
 
     # Search all collections for the given string, using tqdm to display a progress bar.
     results_table = []
@@ -75,21 +74,28 @@ def list_collections_containing(cmd_pointer, cmd: dict):
                         "Matches": query_results.outputs["data_count"],
                     }
                 )
-            # raise RunQueryError(task_id=1, message="This is a test error", error_type="err123", detail='aaa')
+            # raise RunQueryError(task_id=1, message="This is a test error", error_type="err123", detail="aaa")
+            # raise RunQueryError(
+            #     task_id=1,
+            #     message="This is a runtime test error with too_many_nested_clauses",
+            #     error_type="RuntimeError",
+            #     detail="",
+            # )
         except RunQueryError as err:
             output_error(plugin_msg("err_deepsearch", err), return_val=False)
 
+            # To cause this error, run query with no quotes and two words, eg. 'brain tumor'
             if err.error_type == "RuntimeError":
                 # https://github.com/DS4SD/deepsearch-toolkit/blob/5ddfdb70fb5fedd13971e06b88e6930f2f431e45/deepsearch/cps/client/components/queries.py#L111
                 if "too_many_nested_clauses" in err.message:
                     output_error(plugin_msg("err_runtime"), return_val=False, pad_top=1)
 
-            return False
+            return
 
     # No results found
     # results_table = [] # Keep here for testing
     if not results_table:
-        return output_error(plugin_msg("err_no_matching_collections", cmd["search_query"]), return_val=False)
+        return output_error(plugin_msg("err_no_matching_collections", cmd["search_query"]))
 
     # Success
     output_success(

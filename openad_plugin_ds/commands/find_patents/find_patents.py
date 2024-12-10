@@ -1,11 +1,9 @@
-import numpy as np
 import pandas as pd
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.smols.smol_cache import create_analysis_record, save_result
 from openad.smols.smol_functions import canonicalize, valid_smiles, valid_inchi
-from openad.helpers.output_msgs import msg
 from openad.helpers.jupyter import save_df_as_csv
 from openad.helpers.jupyter import jup_display_input_molecule
 from openad.helpers.output import output_success, output_error, output_table
@@ -62,7 +60,7 @@ def find_patents_containing_molecule(cmd_pointer, cmd: dict):
             result_type = "InChIKey"
 
         resp = api.queries.run(query)
-        # raise Exception('This is a test error')
+        # raise Exception("This is a test error")
     except Exception as err:  # pylint: disable=broad-exception-caught
         output_error(plugin_msg("err_deepsearch", err), return_val=False)
         return
@@ -79,7 +77,7 @@ def find_patents_containing_molecule(cmd_pointer, cmd: dict):
     # No results found
     # results_table = [] # Keep here for testing
     if not results_table:
-        return output_error(plugin_msg("err_no_patents_found", result_type, identifier), return_val=False)
+        return output_error(plugin_msg("err_no_patents_found", result_type, identifier))
 
     # Success
     output_success(

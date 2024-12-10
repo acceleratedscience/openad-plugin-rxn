@@ -1,5 +1,4 @@
 import pandas as pd
-from datetime import datetime
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
@@ -31,10 +30,9 @@ def list_all_collections(cmd_pointer, cmd: dict):
     try:
         collections = api.elastic.list()
         collections.sort(key=lambda c: c.name.lower())
-        # raise Exception('This is a test error')
+        # raise Exception("This is a test error")
     except Exception as err:  # pylint: disable=broad-exception-caught
-        output_error(plugin_msg("err_deepsearch", err), return_val=False)
-        return False
+        return output_error(plugin_msg("err_deepsearch", err))
 
     # Compile results table
     results_table = [
@@ -55,7 +53,7 @@ def list_all_collections(cmd_pointer, cmd: dict):
     # No results found
     # results_table = [] # Keep here for testing
     if not results_table:
-        return output_error(plugin_msg("err_no_collections_available"), return_val=False)
+        return output_error(plugin_msg("err_no_collections_available"))
 
     # Print collections table
     df = pd.DataFrame(results_table)

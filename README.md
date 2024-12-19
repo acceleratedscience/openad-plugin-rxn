@@ -4,20 +4,21 @@ _This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-too
 
 <br>
 
-## About Deep Search
+## About RXN
 
-Deep Search (aka DS4SD) is developed at IBM Research and leverages state-of-the-art AI methods to continuously collect, convert, enrich, and link large document collections. You can use it for both public and proprietary PDF documents.
+RXN helps you predict chemical reactions, retrosynthesis pathways and experimental procedures. You can train AI models with data for specific chemistry domains.
 
-[ds4sd.github.io](https://ds4sd.github.io/) / [GitHub](https://github.com/DS4SD) / [IBM Research](https://research.ibm.com/projects/deep-search)
+[rxn.app.accelerate.science](https://rxn.app.accelerate.science) / [GitHub](https://github.com/rxn4chemistry)
+
 
 <br>
 
 ## About this Plugin
 
-This plugin exposes a subset of Deep Search functionality to the OpenAD client, more specifically:
-- Finding molecules by similarity or substructure
-- Scanning patents for molecules, or find patents containing a certain molecule
-- List and search available Deep Search collections like arXiv abstracts, PubChem or USPTO patents and more
+This plugin exposes a subset of RXN functionality to the OpenAD client, more specifically:
+- Predict reactions between molecules
+- Predict retrosynthesis pathways to generate a molecule
+- Interpret chemnical recipes and parse them into step-by-step instructions
 
 <br>
 
@@ -25,10 +26,10 @@ This plugin exposes a subset of Deep Search functionality to the OpenAD client, 
 
 Regular installation:
 
-    pip install git+https://github.com/acceleratedscience/openad-plugin-ds
+    pip install git+https://github.com/acceleratedscience/openad-plugin-rxn
 
 Installation for development:
 
-    git clone git@github.com:acceleratedscience/openad-plugin-ds.git
-    cd openad-plugin-ds
+    git clone git@github.com:acceleratedscience/openad-plugin-rxn.git
+    cd openad-plugin-rxn
     pip install -e .

@@ -286,6 +286,34 @@ class RXNPlugin:
             else:
                 return ["<red>", "</red>"]
 
+    def get_flag(self, flag_text: str, trim: bool = False) -> str:
+        """
+        Turns a flag text into a styled flag for display.
+        """
+        flag_text = flag_text.upper()
+        output = ""
+
+        # Simple text flag for Jupyter Notebook
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            output = f"<span style='opacity:.3'> - [ {flag_text} ]</span>"
+
+        # SUCCESS
+        if flag_text == "SUCCESS":
+            output = f" <success> {flag_text} </success>"
+
+        # FAILED
+        if flag_text == "FAILED":
+            output = f" <on_red> {flag_text} </on_red>"
+
+        # CACHED / anything else
+        output = f" <reverse> {flag_text} </reverse>"
+
+        # Trim leading whitespace if required
+        if trim:
+            output = output.strip()
+
+        return output
+
     #
     #
     #
@@ -356,7 +384,7 @@ class RXNPlugin:
             filename = f"rxn-{name}--{key}.result"
             cache_dir = self._get_cache_dir(cmd_pointer)
             with open(os.path.join(cache_dir, filename), "wb") as handle:
-                pickle.dump(dict(payload), handle)
+                pickle.dump({"payload": payload}, handle)
             return True
         except Exception as err:  # pylint: disable=broad-except
             output_error(["Failed to save result as cache", f"Data: {payload}", err], return_val=False)
@@ -369,7 +397,7 @@ class RXNPlugin:
             cache_dir = self._get_cache_dir(cmd_pointer)
             with open(os.path.join(cache_dir, filename), "rb") as handle:
                 result = pickle.load(handle)
-            return result
+            return result.get("payload")
         except Exception:  # pylint: disable=broad-except
             return False
 

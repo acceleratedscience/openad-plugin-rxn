@@ -54,8 +54,11 @@ class PredictRetro(RXNPlugin):
         "ai_model": "2020-07-01",
     }
 
+    # Cached result
+    result_from_cache = None
+
     # Debugging: skip API call and use placeholder result
-    debug = True
+    debug = False
 
     def __init__(self, cmd_pointer, cmd):
         super().__init__()
@@ -69,23 +72,46 @@ class PredictRetro(RXNPlugin):
         self._setup()
         self._parse_input()
 
-        # STEP 0: Launch job and get task ID
-        if self.debug:
-            task_id = "123"
-        else:
-            task_id = self._api_get_task_id()
-            if not task_id:
-                return
+        # Check if result is in cache
+        input_smiles_key = canonicalize(self.input_smiles)
+        self.result_from_cache = super().retrieve_result_cache(
+            self.cmd_pointer,
+            name=f"predict-retro-{self.using_params.get('ai_model')}",
+            key=input_smiles_key,
+        )
 
-        # STEP 1: Get list of candidate retrosynthesis pathways from RXN API
-        if self.debug:
-            retrosynthetic_paths = self._get_placeholder_result()
-        else:
-            retrosynthetic_paths = self._api_get_results(task_id)
-            if not retrosynthetic_paths:
-                return
+        # Not in cache -> run the job
+        if not self.result_from_cache:
 
-        # STEP 2: Simplify resuls for display
+            # STEP 1: Launch job and get task ID
+            if self.debug:
+                task_id = "123"
+            else:
+                task_id = self._api_get_task_id()
+                if not task_id:
+                    return
+
+            # STEP 2: Get list of candidate retrosynthesis pathways from RXN API
+            if self.debug:
+                retrosynthetic_paths = self._get_placeholder_result()
+            else:
+                retrosynthetic_paths = self._api_get_results(task_id)
+                if not retrosynthetic_paths:
+                    return
+
+            # Save result in cache
+            super().store_result_cache(
+                self.cmd_pointer,
+                name=f"predict-retro-{self.using_params.get('ai_model')}",
+                key=input_smiles_key,
+                payload=retrosynthetic_paths,
+            )
+
+        # In cache -> use result
+        else:
+            retrosynthetic_paths = self.result_from_cache
+
+        # STEP 3: Simplify resuls for display
         reactions_dict_list = self._simplify_results(retrosynthetic_paths)
         if not reactions_dict_list:
             return
@@ -104,7 +130,7 @@ class PredictRetro(RXNPlugin):
             cmd_pointer=self.cmd_pointer,
         )
 
-        # STEP 3: Display results or return data
+        # STEP 4: Display results or return data
         if GLOBAL_SETTINGS["display"] == "api":
             df = self._create_df_output(reactions_dict_list)
             return df
@@ -576,18 +602,28 @@ class PredictRetro(RXNPlugin):
         Loop through the print strings of each reactions and print the total output.
         """
 
-        # Display image of the input molecule in Jupyter Notebook
-        if GLOBAL_SETTINGS["display"] == "notebook":
-            jup_display_input_molecule(self.input_smiles, "smiles")
-
         output = []
+
+        # Optional CACHED flag
+        flag = super().get_flag("cached") if self.result_from_cache else ""
+
+        # Assemble results
         for i, reactions_dict in enumerate(reactions_dict_list):
             reaction_print_str = self._get_print_str_reaction_tree([reactions_dict])
             output.append("")
-            output.append(f"<h1>Reaction Path #{i + 1}</h1>")
+            output.append(f"<h1>Reaction Path #{i + 1}{flag}</h1>")
             output.append(reaction_print_str)
 
-        display(HTML("\n".join(output)))
+        # Print - Jupyter Notebook
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            # Display image of the input molecule
+            jup_display_input_molecule(self.input_smiles, "smiles")
+            # Display reaction paths
+            display(HTML("\n".join(output)))
+
+        # Print - CLI
+        else:
+            output_text("\n".join(output))
 
     def _get_placeholder_result(self):
         """

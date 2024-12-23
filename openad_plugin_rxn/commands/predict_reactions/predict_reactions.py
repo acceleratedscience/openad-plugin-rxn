@@ -435,14 +435,14 @@ class PredictReactions(RXNPlugin):
         # Cached reaction
         elif is_cached:
             header_print_str = self.___print_str__header(index, flag="cached")
-            reaction_print_str = self.___print_str__reaction(input_smiles, prediction.get("smiles"))
+            reaction_print_str = self.___print_str__reaction(input_smiles, prediction)
             confidence_print_str = self.___print_str__confidence(prediction.get("confidence"))
             print_str = "\n".join([header_print_str, reaction_print_str, confidence_print_str])
 
         # New reaction
         else:
             header_print_str = self.___print_str__header(index)
-            reaction_print_str = self.___print_str__reaction(input_smiles, prediction["smiles"])
+            reaction_print_str = self.___print_str__reaction(input_smiles, prediction)
             confidence_print_str = self.___print_str__confidence(prediction["confidence"])
             print_str = "\n".join([header_print_str, reaction_print_str, confidence_print_str])
 
@@ -466,17 +466,9 @@ class PredictReactions(RXNPlugin):
 
         # Flag
         if flag == "cached":
-            flag = (
-                "<span style='opacity:.3'> - [ CACHED ]</span>"
-                if GLOBAL_SETTINGS["display"] == "notebook"
-                else " <reverse> CACHED </reverse>"
-            )
+            flag = super().get_flag("cached")
         elif flag == "failed":
-            flag = (
-                "<span style='color:#d00'> - [ FAILED ]</span>"
-                if GLOBAL_SETTINGS["display"] == "notebook"
-                else " <on_red> FAILED </on_red>"
-            )
+            flag = super().get_flag("failed")
 
         # Assemble for Jupyter Notebook
         if GLOBAL_SETTINGS["display"] == "notebook":
@@ -491,7 +483,7 @@ class PredictReactions(RXNPlugin):
 
         return "\n".join(output)
 
-    def ___print_str__reaction(self, input_smiles: list, reaction_smiles: str):
+    def ___print_str__reaction(self, input_smiles: list, prediction: dict):
         """
         Get a clean, multiline string representation of a reaction.
 
@@ -507,6 +499,8 @@ class PredictReactions(RXNPlugin):
         """
 
         # Deconstruct
+        reaction_smiles = prediction.get("smiles")
+        confidence = prediction.get("confidence")
         reaction_in_out = reaction_smiles.split(">>")
         reaction_input = reaction_in_out[0]
         reaction_output = reaction_in_out[1]
@@ -523,11 +517,12 @@ class PredictReactions(RXNPlugin):
         #     input_smiles.append(smiles)
 
         # Assemble
+        confidence_style_tags = super().get_confidence_style(confidence)
         reaction_input_print = "<soft>+</soft>  " + "\n<soft>+</soft>  ".join(input_smiles)
         output = [
             reaction_input_print,
             "   <soft>-------------------------</soft>",
-            f"<soft>=></soft> <success>{reaction_output}</success>",
+            f"<soft>=></soft> {confidence_style_tags[0]}{reaction_output}{confidence_style_tags[1]}",
         ]
 
         # Turn into HTML for Jupyter Notebook
@@ -583,68 +578,8 @@ class PredictReactions(RXNPlugin):
         Parameters:
             confidence (float): Confidence score between 0 and 1
         """
-
-        # Parse confidence
-        confidence = round(confidence * 100, 2) if confidence or confidence == 0 else None
-
-        # fmt: off
-        confidence_style = (
-            ["<soft>", "</soft>", "#ccc"] if confidence is None
-            else ["<green>","</green>", "#090"] if confidence > 90
-            else ["<yellow>","</yellow>", "#dc0"] if confidence > 70
-            else ["<reset>","</reset>", "#333"] if confidence > 50
-            else ["<red>","</red>", "#d00"]
-        )
-        # fmt: on
-
-        # Output for Jupyter Notebook
-        if GLOBAL_SETTINGS["display"] == "notebook":
-            # Confidence meter
-            confidence_meter = "".join(
-                [
-                    "<div style='width:300px;height:5px;background:#eee;'>",
-                    f"<div style='background:{confidence_style[2]};width:{confidence * 3}px;height:100%;'></div>",
-                    "</div>",
-                ]
-            )
-
-            # Confidence score in text
-            confidence_str = (
-                f"<span style='color:{confidence_style[2]}'>{confidence}%</span> <span style='color:#ccc'>confidence</span>"
-                if confidence
-                else "<span style='color:#ccc'>Confidence: n/a</span>"
-            )
-
-            # Assemble
-            output = [
-                confidence_meter,
-                confidence_str,
-            ]
-            return "".join(output)
-
-        # Output for CLI
-        else:
-            # Confidence meter
-            confidence_meter = ["━" for _ in range(24)]
-            confidence_meter.insert(0, confidence_style[0])
-            confidence_meter.insert(round(confidence / 4), "╸" + confidence_style[1])
-            confidence_meter = "   <soft>" + "".join(confidence_meter) + "</soft>"
-
-            # Confidence score in text
-            confidence_str = str(confidence).rstrip("0").rstrip(".") if confidence else None
-            confidence_str = (
-                f"   {confidence_style[0]}{confidence_str}%{confidence_style[1]} <soft>confidence</soft>"
-                if confidence
-                else "   <soft>Confidence: n/a</soft>"
-            )
-
-            # Assemble
-            output = [
-                confidence_meter,
-                confidence_str,
-                # "   -------------------------",
-            ]
-            return "\n".join(output)
+        confidence_print_str_list = super().get_print_str_list__confidence(confidence)
+        return "\n".join(confidence_print_str_list)
 
     def __get_reaction_image(self, reaction_smiles: str):
         """

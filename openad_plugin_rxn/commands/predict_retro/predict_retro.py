@@ -1,7 +1,5 @@
-from rdkit import Chem
 from time import sleep
-from rdkit.Chem import AllChem
-from IPython.display import display
+from IPython.display import display, HTML
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
@@ -9,9 +7,9 @@ from openad.smols.smol_cache import create_analysis_record, save_result
 from openad.smols.smol_functions import canonicalize, valid_smiles
 from openad.helpers.spinner import spinner
 from openad.plugins.style_parser import strip_tags
-from openad.helpers.output import output_text, output_error, output_success
+from openad.helpers.output import output_text, output_error
 from openad.helpers.general import get_print_width
-from openad.helpers.jupyter import jup_display_input_molecule, parse_using_clause
+from openad.helpers.jupyter import jup_display_input_molecule
 
 # Plugin
 from openad_plugin_rxn.rxn_helper import RXNPlugin
@@ -91,6 +89,20 @@ class PredictRetro(RXNPlugin):
         if not reactions_dict_list:
             return
 
+        # Save results as analysis records that can be merged
+        # with the molecule working set in a follow up comand:
+        # `enrich mols with analysis`
+        save_result(
+            create_analysis_record(
+                self.input_smiles,
+                PLUGIN_KEY,
+                "Predict_Retrosynthesis",
+                self.using_params,
+                reactions_dict_list,
+            ),
+            cmd_pointer=self.cmd_pointer,
+        )
+
         # STEP 3: Display results or return data
         if GLOBAL_SETTINGS["display"] == "api":
             return reactions_dict_list
@@ -115,7 +127,7 @@ class PredictRetro(RXNPlugin):
         self.input_smiles = self.cmd.get("smiles", [None])[0]
         if not self.input_smiles or not valid_smiles(self.input_smiles):
             return output_error(["Provided SMILES is invalid", f"Input SMILES: '{self.input_smiles}'"])
-        self.input_smiles = canonicalize(self.input_smiles)
+        # self.input_smiles = canonicalize(self.input_smiles) # Makes it harder to tie input and output together
 
         # Make sure input SMILES is not a reaction
         if len(self.input_smiles.split(".")) > 1:
@@ -310,12 +322,67 @@ class PredictRetro(RXNPlugin):
         else:
             return key
 
-    def _get_print_str_reaction_tree(self, mol_list: list, level=0, max_width=None) -> str:
+    def _get_print_str_reaction_tree(self, mol_list: list) -> str:
         """
         Get a printable representation of the reaction tree.
+        """
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            # print(self.__get_print_str_reaction_tree_jup(mol_list, level=0))
+            return self.__get_print_str_reaction_tree_jup(mol_list, level=0)
+        else:
+            return self.__get_print_str_reaction_tree_cli(mol_list, level=0, max_width=None)
+
+    def __get_print_str_reaction_tree_jup(self, mol_list: list, level=0) -> str:
+        """
+        Create printable reaction tree for Jupyter Notebook output.
+        """
+        output = []
+        box_tags = ["<div style='border: solid 1px #ccc; padding: 12px 16px'>", "</div>"]
+        plus = "<span style='color: #ccc'>+ </span>"
+
+        for item in mol_list:
+            if isinstance(item, str):
+                # Add smiles
+                smi_val = item
+                smi_val = f"<div>{plus}{item}</div>"
+                output.append(smi_val)
+            elif isinstance(item, dict):
+                # Parse confidence
+                confidence = item.get("_confidence")
+                confidence_color = self.get_confidence_style(confidence, return_color=True)
+
+                # Add parent smiles
+                smi_val = f"<div style='color:{confidence_color}'>{plus}{item.get('value')}</div>"
+                output.append(smi_val)
+
+                # Open box
+                output.append(box_tags[0])
+
+                # Add children
+                output.append(self.__get_print_str_reaction_tree_jup(item.get("children", []), level=level + 1))
+
+                # Add confidence
+                confidence_print_str_list = super().get_print_str_list__confidence(confidence)
+                confidence_print_str = "<br>" + "".join(confidence_print_str_list)
+                output.append(confidence_print_str)
+
+                # Close box
+                output.append(box_tags[1])
+
+        # Enclose parent in box
+        if level == 0:
+            output = [box_tags[0]] + output + [box_tags[1]]
+
+        return "\n".join(output)
+
+    def __get_print_str_reaction_tree_cli(self, mol_list: list, level=0, max_width=None) -> str:
+        """
+        Create printable reaction tree for CLI output.
 
         Uses UTF box drawing characters:
         https://www.w3schools.com/charsets/ref_utf_box.asp
+
+        For Jupyter output, we use HTML
 
         HHH
         ├───────────────
@@ -338,7 +405,6 @@ class PredictRetro(RXNPlugin):
         │   100% confidence
         └─────────────
         """
-
         output = ""
         prepend_str = "│   " * (level)
         prepend_str_mol = prepend_str[:-2] + "+ " if prepend_str else ""
@@ -361,7 +427,7 @@ class PredictRetro(RXNPlugin):
                 output += f"{prepend_str}<soft>├─────────────────────────</soft>\n"
 
                 # Add children
-                output += self._get_print_str_reaction_tree(
+                output += self.__get_print_str_reaction_tree_cli(
                     item.get("children", []), level=level + 1, max_width=max_width
                 )
 
@@ -407,13 +473,19 @@ class PredictRetro(RXNPlugin):
         """
         Loop through the print strings of each reactions and print the total output.
         """
+
+        # Display image of the input molecule in Jupyter Notebook
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            jup_display_input_molecule(self.input_smiles, "smiles")
+
         output = []
         for i, reactions_dict in enumerate(reactions_dict_list):
-            reaction_print_str = self._get_print_str_reaction_tree([reactions_dict], max_width=None)
-            output.append(f"<h1>Path #{i}</h1>")
+            reaction_print_str = self._get_print_str_reaction_tree([reactions_dict])
+            output.append("")
+            output.append(f"<h1>Path #{i + 1}</h1>")
             output.append(reaction_print_str)
 
-        output_text("\n".join(output), return_val=False, pad=2, nowrap=True)
+        display(HTML("\n".join(output)))
 
     def _get_placeholder_result(self):
         """

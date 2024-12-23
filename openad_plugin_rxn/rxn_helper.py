@@ -3,6 +3,7 @@ import json
 import pickle
 import string
 import hashlib
+import pandas as pd
 from time import sleep
 
 # OpenAD
@@ -13,69 +14,283 @@ from openad.helpers.output import output_error
 # Plugin
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY
 
-
-def generate_smiles_hash(smiles_string):
-    # Convert the SMILES string to bytes (required by hashlib)
-    bytes_smiles = smiles_string.encode("utf-8")
-
-    # Calculate the SHA-256 hash
-    sha256_hash = hashlib.sha256(bytes_smiles).hexdigest()
-
-    return sha256_hash
-
-
-def create_valid_filename_from_smiles(smiles_string):
-    # Generate the SHA-256 hash from the SMILES string
-    hash_value = generate_smiles_hash(smiles_string)
-
-    # Create the filename by adding the hash value and the .smiles extension
-    filename = hash_value + ".smiles"
-
-    return filename
+spinner_msg = [
+    "",
+    "this may take a minute",
+    "Working on it",
+    "Still working",
+    "Hang tight",
+    "Almost there",
+    "Just a moment",
+    "Seems like it's taking a while",
+    "Apologies for the long wait",
+]
 
 
-def format_filename(s):
-    """Take a string and return a valid filename constructed from the string.
-    Uses a whitelist approach: any characters not present in valid_chars are
-    removed. Also spaces are replaced with underscores.
-
-    Note: this method may produce invalid filenames such as ``, `.` or `..`
-    When I use this method I prepend a date string like '2009_01_15_19_46_32_'
-    and append a file extension like '.txt', so I avoid the potential of using
-    an invalid filename.
-    """
-    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    filename = "".join(c for c in s if c in valid_chars)
-    filename = filename.replace(" ", "_")  # I don't like spaces in filenames.
-    filename = filename.replace("CON", "C0N")  # I don't like spaces in filenames.
-    return filename
-
-
-class RXNHelper:
-    import pandas as pd
+class RXNPlugin:
 
     _RXN_VARS_TEMPLATE = {"current_project": None, "current_project_id": None}
 
-    def __init__(self) -> None:
+    def __init__(self):
         pass
 
-    # Creates_the Cache Key
-    def get_dataframe_from_file(self, cmd_pointer, filename):
-        import pandas
+    # Utility functions
+    # -----------------
 
-        if not os.path.isfile(cmd_pointer.workspace_path(cmd_pointer.settings["workspace"].upper()) + "/" + filename):
-            raise BaseException("file does not exist")
+    def get_dataframe_from_file(self, cmd_pointer, filename: str) -> pd.DataFrame:
+        """
+        Parse a CSV file and return is as a dataframe.
+        """
+        try:
+            file_path = os.path.join(cmd_pointer.workspace_path(), filename)
+            df = pd.read_csv(file_path)
+            return df
+        except FileNotFoundError as err:
+            output_error(
+                "File not found", "Path should be relative to your workspace", "Path: {filename}", err, return_val=False
+            )
+        except Exception as err:
+            output_error("Something went wrong", err, return_val=False)
+
+    def get_list_from_txt_file(self, cmd_pointer: dict, filename: str) -> list:
+        """
+        Parse TXT file and return the lines as a list.
+        """
+        try:
+            file_path = os.path.join(cmd_pointer.workspace_path(), filename)
+            with open(file_path) as f:
+                content = f.read()
+                lines = content.splitlines()
+                return lines
+        except FileNotFoundError as err:
+            output_error(
+                "File not found", "Path should be relative to your workspace", "Path: {filename}", err, return_val=False
+            )
+        except Exception as err:
+            output_error("Something went wrong", err, return_val=False)
+
+    def validate_reactions_list(self, reactions_list: list) -> bool:
+        """
+        Check if the reactions in a list are structured correctly.
+
+        Returns False if more reactions are invalid than valid.
+        """
+        valid, invalid = self._validate_reactions_list(reactions_list)
+        if invalid < valid:
+            return True
         else:
-            df = pandas.read_csv(cmd_pointer.workspace_path(cmd_pointer.settings["workspace"].upper()) + "/" + filename)
-        return df
+            output_error(
+                [
+                    "File contains too many invalid reactions",
+                    "Reactions should be one per line, in the format: <smiles>.<smiles>.<smiles>",
+                    f"Invalid reactions: {invalid} / {valid + invalid}",
+                ],
+                return_val=False,
+            )
+            return False
 
-    def get_column_as_list_from_dataframe(self, a_dataframe, column_name) -> list:
-        import pandas
+    def _validate_reactions_list(self, reactions_list: list) -> tuple:
+        valid = []
+        invalid = []
+        for reaction in reactions_list:
+            smiles = reaction.split(".")
+            smiles = [x for x in smiles if x]
+            if len(smiles) > 1:
+                valid.append(reaction)
+            else:
+                invalid.append(reaction)
 
-        if column_name in a_dataframe:
-            return a_dataframe[column_name].tolist()
+        return len(valid), len(invalid)
+
+    def get_column_as_list_from_dataframe(self, df, column_name) -> list:
+        """
+        Check a dataframe for a case-insensitive column name and return the values as a list.
+        """
+        columns = df.columns
+        columns_lowercase = [column.lower() for column in columns]
+        if column_name.lower() in columns_lowercase:
+            index = columns_lowercase.index(column_name.lower())
+            column = columns[index]
+            return df[column].tolist()
         else:
             return []
+
+    def get_print_str__reaction(self, reaction_smiles: str, input_smiles: list = None) -> str:
+        """
+        Get a clean, multiline representation of a reaction for display.
+
+        Parameters
+        ----------
+        reaction_smiles : str
+            The reaction SMILES string:
+            AA.BB.CC>>DD
+        input_smiles : list, optional
+            A list of input SMILES strings, if available.
+            - - -
+            When predicting reactions, RXN will canonicalize
+            your input SMILES, making it hard to tie input and
+            output together. In this case, you can pass the
+            original input smiles to display instead.
+
+        Input:
+            AA.BB.CC>>DD
+
+        Output:
+            +  AA
+            +  BB
+            +  CC
+            -------------------------
+            => DD
+        """
+
+        # Deconstruct
+        reaction_in_out = reaction_smiles.split(">>")
+        reaction_input = reaction_in_out[0]
+        reaction_output = reaction_in_out[1]
+
+        # Note: RXN will canonicalize the input SMILES,
+        # making it hard to tie input and output together.
+        # Hence, we use the original innput smiles in our
+        # reaction display. If we ever want to change that,
+        # simply uncomment the block below.
+
+        # # Parse input smiles
+        # input_smiles = []
+        # for smiles in reaction_input.split("."):
+        #     input_smiles.append(smiles)
+
+        # Assemble
+        reaction_input_print = "<soft>+</soft>  " + "\n<soft>+</soft>  ".join(input_smiles)
+        output = [
+            reaction_input_print,
+            "   <soft>-------------------------</soft>",
+            f"<soft>=></soft> <success>{reaction_output}</success>",
+        ]
+
+        # Turn into HTML for Jupyter Notebook
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            output = "<br>".join(output) + "<br>"
+            output = tags_to_markdown(output)
+            return output
+        else:
+            return "\n".join(output)
+
+    def get_print_str_list__confidence(self, confidence):
+        """
+        Visualize the confidence score.
+
+        Parameters:
+            confidence (float): Confidence score between 0 and 1
+        """
+
+        output = []
+
+        # Confidence color
+        confidence_style_tags = self.get_confidence_style(confidence)
+        confidence_color = self.get_confidence_style(confidence, return_color=True)
+
+        # Parse confidence into a percentage
+        confidence = round(confidence * 100, 2) if confidence or confidence == 0 else None
+
+        # Output for Jupyter Notebook
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            # Confidence meter
+            confidence_meter = "".join(
+                [
+                    "<div style='width:300px;height:5px;background:#eee;'>",
+                    f"<div style='background:{confidence_color};width:{confidence * 3}px;height:100%;'></div>",
+                    "</div>",
+                ]
+            )
+
+            # Confidence score in text
+            confidence_str = (
+                f"<span style='color:{confidence_color}'>{confidence}%</span> <span style='color:#ccc'>confidence</span>"
+                if confidence
+                else "<span style='color:#ccc'>Confidence: n/a</span>"
+            )
+
+            # Assemble
+            output = [
+                confidence_meter,
+                confidence_str,
+            ]
+
+        # Output for CLI
+        else:
+            # Confidence meter
+            confidence_meter = ["━" for _ in range(24)]
+            confidence_meter.insert(0, confidence_style_tags[0])
+            if confidence == 100:
+                confidence_meter.append("━" + confidence_style_tags[1])
+                print(confidence_meter)
+            else:
+                confidence_meter.insert(round(confidence / 4), "╸" + confidence_style_tags[1])
+            confidence_meter = "<soft>" + "".join(confidence_meter) + "</soft>"
+
+            # Confidence score in text
+            confidence_str = str(confidence).rstrip("0").rstrip(".") if confidence else None
+            confidence_str = (
+                f"{confidence_style_tags[0]}{confidence_str}%{confidence_style_tags[1]} <soft>confidence</soft>"
+                if confidence
+                else "<soft>Confidence: n/a</soft>"
+            )
+
+            # Assemble
+            output = [
+                confidence_meter,
+                confidence_str,
+            ]
+
+        return output
+
+    def get_confidence_style(self, confidence, return_color=False):
+        """
+        Return the appropriate style tags and color for a confidence score.
+
+        Parameters
+        ----------
+        confidence : float
+            The confidence score between 0 and 1.
+
+        Returns
+        -------
+        tuple:
+            confidence_style_tags, confidence_color
+        """
+
+        # Unknown confidence
+        if confidence is None:
+            if return_color:
+                return "#ccc"
+            else:
+                return ["<soft>", "</soft>"]
+
+        # High - green
+        if confidence > 0.9:
+            if return_color:
+                return "#090"
+            else:
+                return ["<green>", "</green>"]
+
+        # Medium - yellow
+        if confidence > 0.5:
+            if return_color:
+                return "#dc0"
+            else:
+                return ["<yellow>", "</yellow>"]
+
+        # Low - red
+        else:
+            if return_color:
+                return "#d00"
+            else:
+                return ["<red>", "</red>"]
+
+    #
+    #
+    #
+    #
 
     def append_project(self, cmd_pointer, project_name, project_id):
         if not os.path.isdir(cmd_pointer.home_dir + "/RXN_Projects/"):
@@ -193,7 +408,6 @@ class RXNHelper:
 
     ### only for function checks not for login.py
     def sync_up_workspace_name(self, cmd_pointer, reset=False):
-        # print("syncing)")
         name, id = self.get_current_project(cmd_pointer)
         # print("current_project: "+str(name)+" "+str(id))
         if name == cmd_pointer.settings["workspace"] and reset != True:
@@ -509,3 +723,40 @@ class RXNHelper:
                 using_params[key] = val
 
         return using_params
+
+
+# def generate_smiles_hash(smiles_string):
+#     # Convert the SMILES string to bytes (required by hashlib)
+#     bytes_smiles = smiles_string.encode("utf-8")
+
+#     # Calculate the SHA-256 hash
+#     sha256_hash = hashlib.sha256(bytes_smiles).hexdigest()
+
+#     return sha256_hash
+
+
+# def create_valid_filename_from_smiles(smiles_string):
+#     # Generate the SHA-256 hash from the SMILES string
+#     hash_value = generate_smiles_hash(smiles_string)
+
+#     # Create the filename by adding the hash value and the .smiles extension
+#     filename = hash_value + ".smiles"
+
+#     return filename
+
+
+# def format_filename(s):
+#     """Take a string and return a valid filename constructed from the string.
+#     Uses a whitelist approach: any characters not present in valid_chars are
+#     removed. Also spaces are replaced with underscores.
+
+#     Note: this method may produce invalid filenames such as ``, `.` or `..`
+#     When I use this method I prepend a date string like '2009_01_15_19_46_32_'
+#     and append a file extension like '.txt', so I avoid the potential of using
+#     an invalid filename.
+#     """
+#     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+#     filename = "".join(c for c in s if c in valid_chars)
+#     filename = filename.replace(" ", "_")  # I don't like spaces in filenames.
+#     filename = filename.replace("CON", "C0N")  # I don't like spaces in filenames.
+#     return filename

@@ -1,18 +1,3 @@
-# TO DO: set defaults
-# # Variables
-# val = "val"
-# availability_pricing_threshold = 0
-# available_smiles = None
-# exclude_smiles = None
-# exclude_substructures = None
-# exclude_target_molecule = True
-# fap = 0.6
-# max_steps = 5
-# nbeams = 10
-# pruning_steps = 2
-# ai_model = "2020-07-01"
-
-import py3Dmol
 from rdkit import Chem
 from time import sleep
 from rdkit.Chem import AllChem
@@ -23,344 +8,1385 @@ from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.smols.smol_cache import create_analysis_record, save_result
 from openad.smols.smol_functions import canonicalize, valid_smiles
 from openad.helpers.spinner import spinner
+from openad.plugins.style_parser import strip_tags
 from openad.helpers.output import output_text, output_error, output_success
+from openad.helpers.general import get_print_width
 from openad.helpers.jupyter import jup_display_input_molecule, parse_using_clause
 
 # Plugin
+from openad_plugin_rxn.rxn_helper import RXNPlugin
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY
-from openad_plugin_rxn.rxn_helper import RXNHelper
-
-rxn_helper = RXNHelper()
-
-USING_PARAMS_DEFAULTS = {
-    "availability_pricing_threshold": 0,
-    "available_smiles": None,
-    "exclude_smiles": None,
-    "exclude_substructures": None,
-    "exclude_target_molecule": True,
-    "fap": 0.6,
-    "max_steps": 5,
-    "nbeams": 10,
-    "pruning_steps": 2,
-    "ai_model": "2020-07-01",
-}
 
 
-def _collect_reactions_from_retrosynthesis(tree: dict) -> list[str]:
-    """
-    Collect all reactions from the retrosynthesis tree.
-    """
-
-    reactions = []
-    if tree.get("children", []):
-        smiles_input = ".".join([node["smiles"] for node in tree["children"]])
-        smiles_output = tree["smiles"]
-        reactions.append(
-            AllChem.ReactionFromSmarts(f"{smiles_input}>>{smiles_output}", useSmiles=True)  # pylint: disable=no-member
-        )
-
-    # Loop recursively
-    for node in tree["children"]:
-        reactions.extend(_collect_reactions_from_retrosynthesis(node))
-
-    return reactions
-
-
-def _collect_reactions_from_retrosynthesis_text(tree: dict) -> list[str]:
-    """
-    Collect all reactions from retrosynthesis tree
-    """
-
-    # print(tree)
-
-    reactions = []
-    if tree.get("children", []):
-        smiles_input = " + ".join([node["smiles"] for node in tree["children"]])
-        smiles_output = tree["smiles"]
-        reactions.append(f"{smiles_input} --->> {smiles_output}")
-
-    # Loop recursively
-    for node in tree["children"]:
-        reactions.extend(_collect_reactions_from_retrosynthesis_text(node))
-
-    return reactions
-
-
-def spinner_countdown(s):
-    spinner.start(f"Waiting {s}s before retrying")
-    sleep(1)
-    if s > 1:
-        spinner_countdown(s - 1)
-    else:
-        spinner.stop()
-        return True
-
-
-def predict_retro(cmd_pointer, cmd: dict):
+class PredictRetro(RXNPlugin):
     """
     Perform RXN retrosynthesis prediction.
 
-    Parameters
-    ----------
-    cmd_pointer:
-        The command pointer object
-    cmd: dict
-        Parser inputs from pyparsing as a dictionary
+    Consumes a pyparsing dictionary with either:
+
     """
 
-    # Setup
-    rxn_helper.sync_up_workspace_name(cmd_pointer)
-    rxn_helper.get_current_project(cmd_pointer)
+    cmd_pointer = None
+    cmd = None
+
+    # API
+    api = None
+
+    # Command
+    input_smiles = None
+    using_params = {}
 
     # Error messages
     err_msg_unknown = "Something went wrong"
     err_unresponsive_retries = "Server unresponsive, failed after 10 retries"
     err_msg_process_fail = "Failed to process"
 
-    # Define the RXN API
-    api = cmd_pointer.login_settings["client"][cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)]
+    # Default parameters
+    using_params_defaults = {
+        "availability_pricing_threshold": 0,
+        "available_smiles": None,
+        "exclude_smiles": None,
+        "exclude_substructures": None,
+        "exclude_target_molecule": True,
+        "fap": 0.6,
+        "max_steps": 5,
+        "nbeams": 10,
+        "pruning_steps": 2,
+        "ai_model": "2020-07-01",
+    }
 
-    # Parse input SMILES
-    input_smiles = cmd.get("smiles", [None])[0]
-    if not input_smiles or not valid_smiles(input_smiles):
-        return output_error(["Provided SMILES is invalid", f"Input SMILES: '{input_smiles}'"])
-    input_smiles = canonicalize(input_smiles)
+    # Debugging: skip API call and use placeholder result
+    debug = True
 
-    # Make sure input SMILES is not a reaction
-    if len(input_smiles.split(".")) > 1:
-        return output_error(
-            "Provided SMILES describes a reaction. Run <cmd>rxn predict reaction ?</cmd> to see how to predict reactions instead."
-        )
+    def __init__(self, cmd_pointer, cmd):
+        super().__init__()
+        self.cmd_pointer = cmd_pointer
+        self.cmd = cmd
 
-    # Display image of the input molecule in Jupyter Notebook
-    if GLOBAL_SETTINGS["display"] == "notebook":
-        jup_display_input_molecule(input_smiles, "smiles")
+    def run(self):
+        """
+        Run the command.
+        """
+        self._setup()
+        self._parse_input()
 
-    # Parse parameters from the USING clause
-    using_params = rxn_helper.parse_using_params(cmd, USING_PARAMS_DEFAULTS)
-
-    print(55, using_params)
-
-    # STEP 1: Predict retrosynthesis
-    # ------------------------------
-
-    # Run query - retry up to 10 times upon fail
-    retries = 0
-    max_retries = 10
-    status = False
-    predict_retro_response = None
-    while status is False:
-        try:
-            if retries == 0:
-                spinner.start("Starting retrosynthesis")
-            else:
-                spinner.start(f"Starting retrosynthesis - retry #{retries}")
-
-            # raise Exception("This is a test error")
-
-            # Run query
-            predict_retro_response = api.predict_automatic_retrosynthesis(
-                input_smiles,
-                availability_pricing_threshold=using_params.get("availability_pricing_threshold"),
-                available_smiles=using_params.get("available_smiles"),
-                exclude_smiles=using_params.get("exclude_smiles"),
-                exclude_substructures=using_params.get("exclude_substructures"),
-                exclude_target_molecule=using_params.get("exclude_target_molecule"),
-                fap=using_params.get("fap"),
-                max_steps=using_params.get("max_steps"),
-                nbeams=using_params.get("nbeams"),
-                pruning_steps=using_params.get("pruning_steps"),
-                ai_model=using_params.get("ai_model"),
-            )
-            status = True
-
-        # Fail - failed to connect
-        except Exception as err:  # pylint: disable=broad-exception-caught
-            sleep(2)
-            retries = retries + 1
-            if retries > max_retries:
-                spinner.stop()
-                return output_error([err_unresponsive_retries, err])
-
-    # Fail - empty response
-    if not predict_retro_response or not predict_retro_response.get("response", {}).get("payload"):
-        spinner.stop()
-        return output_error(["The server returned an empty response", predict_retro_response])
-
-    # Fail - error from RXN
-    rxn_error_msg = predict_retro_response.get("response", {}).get("payload", {}).get("errorMessage")
-    if rxn_error_msg:
-        return output_error(rxn_error_msg)
-
-    print(103, "\n", predict_retro_response)
-
-    retries = 0
-    status = "NEW"
-    previous_status = status
-    predict_automatic_retrosynthesis_results = None
-    while status != "SUCCESS":
-        try:
-            if status != previous_status:
-                spinner.start("Processing retrosynthesis: " + status)
-                previous_status = status
-
-            predict_automatic_retrosynthesis_results = api.get_predict_automatic_retrosynthesis_results(
-                predict_retro_response["prediction_id"]
-            )
-            if not predict_retro_response or not predict_retro_response.get("response", {}).get("payload"):
-                output_error("Unable to find path for <yellow>{input_smiles}</yellow>", return_val=False)
+        # STEP 0: Launch job and get task ID
+        if self.debug:
+            task_id = "123"
+        else:
+            task_id = self._api_get_task_id()
+            if not task_id:
                 return
-            status = predict_automatic_retrosynthesis_results["status"]
-            sleep(5)
 
-        except Exception as err:  # pylint: disable=broad-exception-caught
-            if retries < 20:
+        # STEP 1: Get list of candidate retrosynthesis pathways from RXN API
+        if self.debug:
+            retrosynthetic_paths = self._get_placeholder_result()
+        else:
+            retrosynthetic_paths = self._api_get_results(task_id)
+            if not retrosynthetic_paths:
+                return
+
+        # STEP 2: Simplify resuls for display
+        reactions_dict_list = self._simplify_results(retrosynthetic_paths)
+        if not reactions_dict_list:
+            return
+
+        # STEP 3: Display results or return data
+        if GLOBAL_SETTINGS["display"] == "api":
+            return reactions_dict_list
+        else:
+            self._display_results(reactions_dict_list)
+
+    def _setup(self):
+        # Define the RXN API
+        self.api = self.cmd_pointer.login_settings["client"][
+            self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
+        ]
+
+        # Setup
+        super().sync_up_workspace_name(self.cmd_pointer)
+        super().get_current_project(self.cmd_pointer)
+
+    def _parse_input(self):
+        """
+        Parse the pyparsing dictionary input.
+        """
+        # Parse input SMILES
+        self.input_smiles = self.cmd.get("smiles", [None])[0]
+        if not self.input_smiles or not valid_smiles(self.input_smiles):
+            return output_error(["Provided SMILES is invalid", f"Input SMILES: '{self.input_smiles}'"])
+        self.input_smiles = canonicalize(self.input_smiles)
+
+        # Make sure input SMILES is not a reaction
+        if len(self.input_smiles.split(".")) > 1:
+            return output_error(
+                "Provided SMILES describes a reaction. Run <cmd>rxn predict reaction ?</cmd> to see how to predict reactions instead."
+            )
+
+        # Parse parameters from the USING clause
+        self.using_params = super().parse_using_params(self.cmd, self.using_params_defaults)
+
+    def _api_get_task_id(self):
+        """
+        Launch job and return task id.
+        Retry up to 10 times upon failure.
+        """
+        retries = 0
+        max_retries = 10
+        status = False
+        job_response = None
+        while status is False:
+            try:
+                if retries == 0:
+                    spinner.start("Starting retrosynthesis")
+                else:
+                    spinner.start(f"Starting retrosynthesis - retry #{retries}")
+
+                # Run query
+                # raise Exception("This is a test error")
+                job_response = self.api.predict_automatic_retrosynthesis(
+                    self.input_smiles,
+                    availability_pricing_threshold=self.using_params.get("availability_pricing_threshold"),
+                    available_smiles=self.using_params.get("available_smiles"),
+                    exclude_smiles=self.using_params.get("exclude_smiles"),
+                    exclude_substructures=self.using_params.get("exclude_substructures"),
+                    exclude_target_molecule=self.using_params.get("exclude_target_molecule"),
+                    fap=self.using_params.get("fap"),
+                    max_steps=self.using_params.get("max_steps"),
+                    nbeams=self.using_params.get("nbeams"),
+                    pruning_steps=self.using_params.get("pruning_steps"),
+                    ai_model=self.using_params.get("ai_model"),
+                )
+                status = True
+
+            # Fail - failed to connect
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                sleep(2)
                 retries = retries + 1
-                status = "Waiting"
-                spinner_countdown(15)
-            else:
-                return output_error(
+                if retries > max_retries:
+                    spinner.stop()
+                    output_error([self.err_unresponsive_retries, err], return_val=False)
+                    return
+
+        # Fail - empty response
+        if not job_response or not job_response.get("response", {}).get("payload"):
+            spinner.stop()
+            output_error(["The server returned an empty response", job_response], return_val=False)
+            return
+
+        if not job_response.get("prediction_id"):
+            spinner.stop()
+            output_error(["The server failed to provide a prediction ID", job_response], return_val=False)
+            return
+
+        # Fail - error from RXN
+        rxn_error_msg = job_response.get("response", {}).get("payload", {}).get("errorMessage")
+        if rxn_error_msg:
+            spinner.stop()
+            output_error(rxn_error_msg, return_val=False)
+            return
+
+        task_id = job_response.get("prediction_id")
+        return task_id
+
+    def _api_get_results(self, task_id):
+        """
+        Check the status of the job every 10 seconds and return the results when ready.
+
+        Retry up to 30 times upon failure (5 minutes max).
+        """
+        retries = 0
+        wait_seconds = 10
+        max_retries = 30  # 5 minutes max
+        try_again = True
+        response = None
+
+        while try_again:
+            try:
+                if retries == 0:
+                    spinner.start("Processing retrosynthesis")
+
+                # Run query
+                response = self.api.get_predict_automatic_retrosynthesis_results(task_id)
+
+                # Job ready
+                if response.get("status") == "SUCCESS":
+                    try_again = False
+                    retrosynthetic_paths = response.get("retrosynthetic_paths")
+                    spinner.succeed("Done")
+                    if not retrosynthetic_paths:
+                        raise Exception("No retrosynthetic paths found")  # pylint: disable=broad-exception-raised
+                    return retrosynthetic_paths
+
+                # Job not ready yet - count down and check again
+                if retries < max_retries:
+                    retries = retries + 1
+                    spinner.countdown(
+                        seconds=wait_seconds,
+                        msg="Processing retrosynthesis - next check in {sec} seconds",
+                        stop_msg="Processing retrosynthesis",
+                    )
+
+                # Took too long, we give up
+                else:
+                    raise TimeoutError()
+
+            # Server took too long
+            except TimeoutError:
+                total_time_waited = retries * wait_seconds
+                minutes = total_time_waited // 60
+                seconds = total_time_waited % 60
+                time_str = f"{minutes} minutes and {seconds} seconds" if minutes > 0 else f"{seconds} seconds"
+                spinner.stop()
+                output_error(
                     [
                         "Server unresponsive",
-                        f"Unable to complete processing for prediction id <yellow>{predict_retro_response['prediction_id']}</yellow> after 20 retries",
-                        f"Error: {err}",
-                    ]
+                        f"Unable to complete processing after {time_str}",
+                    ],
+                    return_val=False,
                 )
 
-    # print(222, "\n", predict_automatic_retrosynthesis_results)
+            # Other errors
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                spinner.stop()
+                output_error(["Something went wrong", err], return_val=False)
 
-    # STEP 2: Process results
-    # -----------------------
+    def _simplify_results(self, retrosynthetic_paths):
+        """
+        Simplify the RXN API result for display.
 
-    reactions_text = []
-    try:
-        for index, tree in enumerate(predict_automatic_retrosynthesis_results["retrosynthetic_paths"]):
-            # print("outer")
-            for reaction in _collect_reactions_from_retrosynthesis_text(tree):
-                reactions_text.append(str(reaction))
-                # print("inner")
+        See __parse_retrosynthesis_tree below for details.
+        """
+        reactions_dict_list = []
+        try:
+            for tree in retrosynthetic_paths:
+                reactions_dict = self.__parse_retrosynthesis_tree(tree)
+                reactions_dict_list.append(reactions_dict)
+            return reactions_dict_list
 
-    except Exception as err:  # pylint: disable=broad-exception-caught
-        spinner.fail(err_msg_process_fail)
-        output_error(
-            ["Error while processing results: ", err],
-            return_val=False,
-        )
-        return
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            output_error([self.err_msg_process_fail, err], return_val=False)
 
-    # Step 3: Display results
-    # -----------------------
+    def __parse_retrosynthesis_tree(self, tree: dict) -> list[str]:
+        """
+        Organize the molecules from the retrosynthesis tree in a hierarchical dictionary.
 
-    num_results = 0
-    try:
-        spinner.succeed("Finished processing")
-        results = {}
-        i = 0
-        for index, tree in enumerate(predict_automatic_retrosynthesis_results["retrosynthetic_paths"]):
-            num_results = num_results + 1
-            if num_results < 4 or GLOBAL_SETTINGS["VERBOSE"] == False:
-                results[str(index)] = {"confidence": tree["confidence"], "reactions": []}
+        {
+            _confidence: 1.0,
+            'value': 'HHH'
+            'children': [
+                'GGG',
+                {
+                    _confidence: 1.0,
+                    'value': 'FFF'
+                    'children': [
+                        'EEE',
+                        {
+                            _confidence: 1.0,
+                            'value': 'DDD'
+                            'children': [
+                                'AAA',
+                                'BBB',
+                                'CCC',
+                            ]
+                        },
+                    ]
+                },
+            ]
+        }
+        """
+        key = tree.get("smiles")
 
-            output_text(
-                f"Showing path <yellow>{index}</yellow> with confidence <yellow>{tree['confidence']}</yellow>",
-                return_val=False,
-            )
+        if tree.get("children"):
+            output = {}
+            output["value"] = key
+            output["_confidence"] = tree.get("confidence")
+            output["children"] = []
+            for branch in tree.get("children"):
+                value = self.__parse_retrosynthesis_tree(branch)
+                output["children"].append(value)
+            return output
 
-            for reaction in _collect_reactions_from_retrosynthesis(tree):
-                if num_results < 4 or GLOBAL_SETTINGS["VERBOSE"] == False:
-                    results[str(index)]["reactions"].append(reactions_text[i])
-                output_success(f"Reaction: {reactions_text[i]}", return_val=False)
-                i = i + 1
-                if GLOBAL_SETTINGS["display"] == "notebook":
-                    display(Chem.Draw.ReactionToImage(reaction))
+        else:
+            return key
 
-        # Save results as analysis records that can be merged
-        # with the molecule working set in a follow up comand:
-        # `enrich mols with analysis`
-        save_result(
-            create_analysis_record(
-                input_smiles,
-                PLUGIN_KEY,
-                "Predict_Retrosynthesis",
-                using_params,
-                results,
-            ),
-            cmd_pointer=cmd_pointer,
-        )
+    def _get_print_str_reaction_tree(self, mol_list: list, level=0, max_width=None) -> str:
+        """
+        Get a printable representation of the reaction tree.
 
-    except Exception as err:  # pylint: disable=broad-exception-caught
-        output_error(["Error while displaying results: ", err], return_val=False)
-        return
-    i = 0
+        Uses UTF box drawing characters:
+        https://www.w3schools.com/charsets/ref_utf_box.asp
 
-    if GLOBAL_SETTINGS["display"] == "api":
-        return results
+        HHH
+        ├───────────────
+        │ + GGG
+        │ + FFF
+        │   ├───────────────
+        │   │ + EEE
+        │   │ + DDD
+        │   │   ├───────────────
+        │   │   │ + AAA
+        │   │   │ + BBB
+        │   │   │ + CCC
+        │   │   │ ━━━━━━━━━━━━━━━━━━━━━━━━╸
+        │   │   │ 100% confidence
+        │   │   └───────────────
+        │   │  ━━━━━━━━━━━━━━━━━━━━╸━━━━
+        │   │  83.5% confidence
+        │   └─────────────
+        │   ━━━━━━━━━━━━━━━━━━━━━━━━╸
+        │   100% confidence
+        └─────────────
+        """
 
+        output = ""
+        prepend_str = "│   " * (level)
+        prepend_str_mol = prepend_str[:-2] + "+ " if prepend_str else ""
+        prepend_str = f"<soft>{prepend_str}</soft>"
+        prepend_str_mol = f"<soft>{prepend_str_mol}</soft>"
+        max_width = get_print_width(True) if not max_width else max_width
+        for item in mol_list:
+            if isinstance(item, str):
+                # Add smiles
+                smi_val = self.__line_break_smiles(item, max_width, prepend_str)
+                output += f"{prepend_str_mol}{smi_val}\n"
+            elif isinstance(item, dict):
+                # Parse confidence
+                confidence = item.get("_confidence")
+                confidence_style_tags = self.get_confidence_style(confidence)
 
-# def _get_reaction_image(reaction_smiles: str) -> Chem.rdChemReactions.ChemicalReaction:
-#     """
-#     Get a reaction's image
-#     """
-#     return AllChem.ReactionFromSmarts(reaction_smiles, useSmiles=True)  # pylint: disable=no-member
+                # Add parent smiles
+                smi_val = self.__line_break_smiles(item.get("value"), max_width, prepend_str)
+                output += f"{prepend_str_mol}{confidence_style_tags[0]}{smi_val}{confidence_style_tags[1]}\n"
+                output += f"{prepend_str}<soft>├─────────────────────────</soft>\n"
 
+                # Add children
+                output += self._get_print_str_reaction_tree(
+                    item.get("children", []), level=level + 1, max_width=max_width
+                )
 
-# # Variables
-# val = "val"
-# availability_pricing_threshold = 0
-# available_smiles = None
-# exclude_smiles = None
-# exclude_substructures = None
-# exclude_target_molecule = True
-# fap = 0.6
-# max_steps = 5
-# nbeams = 10
-# pruning_steps = 2
-# ai_model = "2020-07-01"
+                # Add confidence
+                confidence_print_str_list = super().get_print_str_list__confidence(confidence)
+                for confidence_print_str in confidence_print_str_list:
+                    output += f"{prepend_str}<soft>│ </soft>{confidence_print_str}\n"
 
-# if "availability_pricing_threshold" in cmd:
-#     availability_pricing_threshold = int(cmd["availability_pricing_threshold"][val])
-#     result_parameters["availability_pricing_threshold"] = availability_pricing_threshold
-# if "available_smiles" in cmd:
-#     available_smiles = cmd["available_smiles"][val]
-#     result_parameters["available_smiles"] = available_smiles
-# if "exclude_smiles" in cmd:
-#     exclude_smiles = cmd["exclude_smiles"][val]
-#     result_parameters["exclude_smiles"] = exclude_smiles
-# if "exclude_substructures" in cmd:
-#     exclude_substructures = cmd["exclude_substructures"][val]
-#     result_parameters["exclude_substructures"] = exclude_substructures
-# if "exclude_target_molecule" in cmd:
-#     if cmd["exclude_substructures"][val].upper() == "TRUE":
-#         exclude_target_molecule = True
-#         result_parameters["exclude_target_molecule"] = exclude_target_molecule
-# if "fap" in cmd:
-#     fap = float(cmd["fap"][val])
-#     result_parameters["fap"] = fap
-# if "max_steps" in cmd:
-#     max_steps = int(cmd["max_steps"][val])
-#     result_parameters["max_steps"] = max_steps
-# if "nbeams" in cmd:
-#     nbeams = int(cmd["nbeams"][val])
-#     result_parameters["nbeams"] = nbeams
-# if "pruning_steps" in cmd:
-#     pruning_steps = int(cmd["pruning_steps"][val])
-#     result_parameters["pruning_steps"] = pruning_steps
-# if "ai_model" in cmd:
-#     ai_model = cmd["ai_model"][val]
-#     result_parameters["ai_model"] = ai_model
+                # Close box
+                output += f"{prepend_str}<soft>└──────────────────────────</soft>\n"
 
+        return output
 
-# Render 3D molecule
-# style = "stick"
-# mol = Chem.MolFromSmiles(input_smiles)  # pylint: disable=no-member
-# mol = Chem.AddHs(mol)  # pylint: disable=no-member
-# AllChem.EmbedMolecule(mol)  # pylint: disable=no-member
-# AllChem.MMFFOptimizeMolecule(mol, maxIters=200)  # pylint: disable=no-member
-# mblock = Chem.MolToMolBlock(mol)  # pylint: disable=no-member
+    def __line_break_smiles(self, smiles, max_width, prepend_str):
+        """
+        Break up a smiles string in multiple lines with each line appropriately prepended.
 
-# view = py3Dmol.view(width=700, height=500)
-# view.addModel(mblock, "mol")
-# view.setStyle({style: {}})
-# view.zoomTo()
-# view.show()
-# output_text("<green>Target Molecule:</green> " + input_smiles, return_val=False)
+        Parameters
+        ----------
+        smiles : str
+            The smiles string to break up.
+        max_width : int
+            The maximum width of the line, including the prepended string.
+        prepend_str : str
+            The string to prepend to each line.
+
+        Input:
+        |  AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+        Output:
+        |  AAAAAAAAAAAAAAAAAAAAAA
+        |  AAAAAAAAAAAAAAAAAAAAAA
+        |  AAAAAAAAAAAAAAAA
+        """
+        max_width = max_width - len(strip_tags(prepend_str))
+        if max_width and len(smiles) > max_width:
+            smiles_lines = [smiles[i : i + max_width] for i in range(0, len(smiles), max_width)]
+            return f"\n{prepend_str}".join(smiles_lines)
+
+        return smiles
+
+    def _display_results(self, reactions_dict_list):
+        """
+        Loop through the print strings of each reactions and print the total output.
+        """
+        output = []
+        for i, reactions_dict in enumerate(reactions_dict_list):
+            reaction_print_str = self._get_print_str_reaction_tree([reactions_dict], max_width=None)
+            output.append(f"<h1>Path #{i}</h1>")
+            output.append(reaction_print_str)
+
+        output_text("\n".join(output), return_val=False, pad=2, nowrap=True)
+
+    def _get_placeholder_result(self):
+        """
+        Return a placeholder result for debugging purposes.
+        """
+        return [
+            {
+                "id": "6765983abf97167d064c7c77",
+                "metadata": {},
+                "embed": {},
+                "computedFields": {},
+                "createdOn": "2024-12-20T16:15:54.620+00:00",
+                "createdBy": "system",
+                "modifiedOn": "2024-12-20T16:15:54.620+00:00",
+                "modifiedBy": "system",
+                "moleculeId": "64c0834767a117001f2feca8",
+                "retrosynthesisId": "67659828bf97167d064c7be4",
+                "sequenceId": "6765983abf97167d064c7c6e",
+                "projectId": "66ffd98620ad5b594360efd7",
+                "smiles": "BrCCc1cccc2c(Br)c3ccccc3cc12",
+                "confidence": 1.0,
+                "confidenceTag": None,
+                "rclass": "Hydroxy to bromo",
+                "hasFeedback": False,
+                "feedback": None,
+                "children": [
+                    {
+                        "id": "6765983abf97167d064c7c6f",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.593+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.593+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "5eb31da4759cc0000175051c",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c6e",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "BrC(Br)(Br)Br",
+                        "confidence": 1.0,
+                        "confidenceTag": None,
+                        "rclass": "Undefined",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [],
+                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": True,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                    {
+                        "id": "6765983abf97167d064c7c70",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.597+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.597+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "5eb27aae759cc0000174d3f8",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c6e",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "ClCCl",
+                        "confidence": 1.0,
+                        "confidenceTag": None,
+                        "rclass": "Undefined",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [],
+                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": True,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                    {
+                        "id": "6765983abf97167d064c7c76",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.616+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.616+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "64c0835c67a117001f2fecc6",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c6e",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "OCCc1cccc2c(Br)c3ccccc3cc12",
+                        "confidence": 0.835,
+                        "confidenceTag": None,
+                        "rclass": "Bromination",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [
+                            {
+                                "id": "6765983abf97167d064c7c71",
+                                "metadata": {},
+                                "embed": {},
+                                "computedFields": {},
+                                "createdOn": "2024-12-20T16:15:54.600+00:00",
+                                "createdBy": "system",
+                                "modifiedOn": "2024-12-20T16:15:54.600+00:00",
+                                "modifiedBy": "system",
+                                "moleculeId": "5eb30c1d759cc0000174ffda",
+                                "retrosynthesisId": "67659828bf97167d064c7be4",
+                                "sequenceId": "6765983abf97167d064c7c6e",
+                                "projectId": "66ffd98620ad5b594360efd7",
+                                "smiles": "O=C1CCC(=O)N1Br",
+                                "confidence": 1.0,
+                                "confidenceTag": None,
+                                "rclass": "Undefined",
+                                "hasFeedback": False,
+                                "feedback": None,
+                                "children": [],
+                                "metaData": {"borderColor": "#28a30d", "count": 1},
+                                "count": 1,
+                                "custom": False,
+                                "isConfidenceComputed": True,
+                                "isFromFile": False,
+                                "isTouched": False,
+                                "isThermal": False,
+                                "isPhotochemical": False,
+                                "isExpandable": False,
+                                "isEditable": False,
+                                "isCommercial": True,
+                                "isDeletable": False,
+                                "isChildrenEditable": False,
+                                "isChildrenDeletable": False,
+                            },
+                            {
+                                "id": "6765983abf97167d064c7c75",
+                                "metadata": {},
+                                "embed": {},
+                                "computedFields": {},
+                                "createdOn": "2024-12-20T16:15:54.613+00:00",
+                                "createdBy": "system",
+                                "modifiedOn": "2024-12-20T16:15:54.613+00:00",
+                                "modifiedBy": "system",
+                                "moleculeId": "64c0835c67a117001f2fecd0",
+                                "retrosynthesisId": "67659828bf97167d064c7be4",
+                                "sequenceId": "6765983abf97167d064c7c6e",
+                                "projectId": "66ffd98620ad5b594360efd7",
+                                "smiles": "OCCc1cccc2cc3ccccc3cc12",
+                                "confidence": 1.0,
+                                "confidenceTag": None,
+                                "rclass": "Ester to alcohol reduction",
+                                "hasFeedback": False,
+                                "feedback": None,
+                                "children": [
+                                    {
+                                        "id": "6765983abf97167d064c7c72",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.603+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.603+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "5eb27acc759cc0000174d4b3",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c6e",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "C1CCOC1",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": True,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                    {
+                                        "id": "6765983abf97167d064c7c73",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.606+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.606+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "64c0835c67a117001f2fecd1",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c6e",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "CCOC(=O)Cc1cccc2cc3ccccc3cc12",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {
+                                            "molecule2commercial": False,
+                                            "molecule2expandable": True,
+                                            "borderColor": "#ce4e04",
+                                            "count": 1,
+                                        },
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": False,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                    {
+                                        "id": "6765983abf97167d064c7c74",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.610+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.610+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "5fad29008937a90001252a8c",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c6e",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "[Li][AlH4]",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": True,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                ],
+                                "metaData": {"molecule2commercial": False, "molecule2expandable": True, "count": 1},
+                                "count": 1,
+                                "custom": False,
+                                "isConfidenceComputed": True,
+                                "isFromFile": False,
+                                "isTouched": False,
+                                "isThermal": False,
+                                "isPhotochemical": False,
+                                "isExpandable": False,
+                                "isEditable": False,
+                                "isCommercial": False,
+                                "isDeletable": False,
+                                "isChildrenEditable": False,
+                                "isChildrenDeletable": False,
+                            },
+                        ],
+                        "metaData": {"molecule2commercial": False, "molecule2expandable": True, "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": False,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                ],
+                "metaData": {"molecule2commercial": False, "molecule2expandable": True},
+                "count": None,
+                "custom": False,
+                "isConfidenceComputed": True,
+                "isFromFile": False,
+                "isTouched": False,
+                "isThermal": False,
+                "isPhotochemical": False,
+                "isExpandable": False,
+                "isEditable": False,
+                "isCommercial": False,
+                "isDeletable": False,
+                "isChildrenEditable": False,
+                "isChildrenDeletable": False,
+            },
+            {
+                "id": "6765983abf97167d064c7c81",
+                "metadata": {},
+                "embed": {},
+                "computedFields": {},
+                "createdOn": "2024-12-20T16:15:54.665+00:00",
+                "createdBy": "system",
+                "modifiedOn": "2024-12-20T16:15:54.665+00:00",
+                "modifiedBy": "system",
+                "moleculeId": "64c0834767a117001f2feca8",
+                "retrosynthesisId": "67659828bf97167d064c7be4",
+                "sequenceId": "6765983abf97167d064c7c78",
+                "projectId": "66ffd98620ad5b594360efd7",
+                "smiles": "BrCCc1cccc2c(Br)c3ccccc3cc12",
+                "confidence": 1.0,
+                "confidenceTag": None,
+                "rclass": "Hydroxy to bromo",
+                "hasFeedback": False,
+                "feedback": None,
+                "children": [
+                    {
+                        "id": "6765983abf97167d064c7c79",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.639+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.639+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "5eb31da4759cc0000175051c",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c78",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "BrC(Br)(Br)Br",
+                        "confidence": 1.0,
+                        "confidenceTag": None,
+                        "rclass": "Undefined",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [],
+                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": True,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                    {
+                        "id": "6765983abf97167d064c7c7a",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.643+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.643+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "5eb27aae759cc0000174d3f8",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c78",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "ClCCl",
+                        "confidence": 1.0,
+                        "confidenceTag": None,
+                        "rclass": "Undefined",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [],
+                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": True,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                    {
+                        "id": "6765983abf97167d064c7c80",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.661+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.661+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "64c0835c67a117001f2fecc6",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c78",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "OCCc1cccc2c(Br)c3ccccc3cc12",
+                        "confidence": 0.835,
+                        "confidenceTag": None,
+                        "rclass": "Bromination",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [
+                            {
+                                "id": "6765983abf97167d064c7c7b",
+                                "metadata": {},
+                                "embed": {},
+                                "computedFields": {},
+                                "createdOn": "2024-12-20T16:15:54.646+00:00",
+                                "createdBy": "system",
+                                "modifiedOn": "2024-12-20T16:15:54.646+00:00",
+                                "modifiedBy": "system",
+                                "moleculeId": "5eb30c1d759cc0000174ffda",
+                                "retrosynthesisId": "67659828bf97167d064c7be4",
+                                "sequenceId": "6765983abf97167d064c7c78",
+                                "projectId": "66ffd98620ad5b594360efd7",
+                                "smiles": "O=C1CCC(=O)N1Br",
+                                "confidence": 1.0,
+                                "confidenceTag": None,
+                                "rclass": "Undefined",
+                                "hasFeedback": False,
+                                "feedback": None,
+                                "children": [],
+                                "metaData": {"borderColor": "#28a30d", "count": 1},
+                                "count": 1,
+                                "custom": False,
+                                "isConfidenceComputed": True,
+                                "isFromFile": False,
+                                "isTouched": False,
+                                "isThermal": False,
+                                "isPhotochemical": False,
+                                "isExpandable": False,
+                                "isEditable": False,
+                                "isCommercial": True,
+                                "isDeletable": False,
+                                "isChildrenEditable": False,
+                                "isChildrenDeletable": False,
+                            },
+                            {
+                                "id": "6765983abf97167d064c7c7f",
+                                "metadata": {},
+                                "embed": {},
+                                "computedFields": {},
+                                "createdOn": "2024-12-20T16:15:54.658+00:00",
+                                "createdBy": "system",
+                                "modifiedOn": "2024-12-20T16:15:54.658+00:00",
+                                "modifiedBy": "system",
+                                "moleculeId": "64c0835c67a117001f2fecd0",
+                                "retrosynthesisId": "67659828bf97167d064c7be4",
+                                "sequenceId": "6765983abf97167d064c7c78",
+                                "projectId": "66ffd98620ad5b594360efd7",
+                                "smiles": "OCCc1cccc2cc3ccccc3cc12",
+                                "confidence": 1.0,
+                                "confidenceTag": None,
+                                "rclass": "Carboxylic acid to alcohol reduction",
+                                "hasFeedback": False,
+                                "feedback": None,
+                                "children": [
+                                    {
+                                        "id": "6765983abf97167d064c7c7c",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.649+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.649+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "5eb2f9a4759cc0000174f571",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c78",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "B",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": True,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                    {
+                                        "id": "6765983abf97167d064c7c7d",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.652+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.652+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "5eb27acc759cc0000174d4b3",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c78",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "C1CCOC1",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": True,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                    {
+                                        "id": "6765983abf97167d064c7c7e",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.655+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.655+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "64c0835c67a117001f2feccf",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c78",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "O=C(O)Cc1cccc2cc3ccccc3cc12",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {
+                                            "molecule2commercial": False,
+                                            "molecule2expandable": True,
+                                            "borderColor": "#ce4e04",
+                                            "count": 1,
+                                        },
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": False,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                ],
+                                "metaData": {"molecule2commercial": False, "molecule2expandable": True, "count": 1},
+                                "count": 1,
+                                "custom": False,
+                                "isConfidenceComputed": True,
+                                "isFromFile": False,
+                                "isTouched": False,
+                                "isThermal": False,
+                                "isPhotochemical": False,
+                                "isExpandable": False,
+                                "isEditable": False,
+                                "isCommercial": False,
+                                "isDeletable": False,
+                                "isChildrenEditable": False,
+                                "isChildrenDeletable": False,
+                            },
+                        ],
+                        "metaData": {"molecule2commercial": False, "molecule2expandable": True, "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": False,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                ],
+                "metaData": {"molecule2commercial": False, "molecule2expandable": True},
+                "count": None,
+                "custom": False,
+                "isConfidenceComputed": True,
+                "isFromFile": False,
+                "isTouched": False,
+                "isThermal": False,
+                "isPhotochemical": False,
+                "isExpandable": False,
+                "isEditable": False,
+                "isCommercial": False,
+                "isDeletable": False,
+                "isChildrenEditable": False,
+                "isChildrenDeletable": False,
+            },
+            {
+                "id": "6765983abf97167d064c7c8b",
+                "metadata": {},
+                "embed": {},
+                "computedFields": {},
+                "createdOn": "2024-12-20T16:15:54.711+00:00",
+                "createdBy": "system",
+                "modifiedOn": "2024-12-20T16:15:54.711+00:00",
+                "modifiedBy": "system",
+                "moleculeId": "64c0834767a117001f2feca8",
+                "retrosynthesisId": "67659828bf97167d064c7be4",
+                "sequenceId": "6765983abf97167d064c7c82",
+                "projectId": "66ffd98620ad5b594360efd7",
+                "smiles": "BrCCc1cccc2c(Br)c3ccccc3cc12",
+                "confidence": 1.0,
+                "confidenceTag": None,
+                "rclass": "Hydroxy to bromo",
+                "hasFeedback": False,
+                "feedback": None,
+                "children": [
+                    {
+                        "id": "6765983abf97167d064c7c83",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.685+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.685+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "5eb31da4759cc0000175051c",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c82",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "BrC(Br)(Br)Br",
+                        "confidence": 1.0,
+                        "confidenceTag": None,
+                        "rclass": "Undefined",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [],
+                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": True,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                    {
+                        "id": "6765983abf97167d064c7c84",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.688+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.688+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "5eb27aae759cc0000174d3f8",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c82",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "ClCCl",
+                        "confidence": 1.0,
+                        "confidenceTag": None,
+                        "rclass": "Undefined",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [],
+                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": True,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                    {
+                        "id": "6765983abf97167d064c7c8a",
+                        "metadata": {},
+                        "embed": {},
+                        "computedFields": {},
+                        "createdOn": "2024-12-20T16:15:54.707+00:00",
+                        "createdBy": "system",
+                        "modifiedOn": "2024-12-20T16:15:54.707+00:00",
+                        "modifiedBy": "system",
+                        "moleculeId": "64c0835c67a117001f2fecc6",
+                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                        "sequenceId": "6765983abf97167d064c7c82",
+                        "projectId": "66ffd98620ad5b594360efd7",
+                        "smiles": "OCCc1cccc2c(Br)c3ccccc3cc12",
+                        "confidence": 0.835,
+                        "confidenceTag": None,
+                        "rclass": "Bromination",
+                        "hasFeedback": False,
+                        "feedback": None,
+                        "children": [
+                            {
+                                "id": "6765983abf97167d064c7c85",
+                                "metadata": {},
+                                "embed": {},
+                                "computedFields": {},
+                                "createdOn": "2024-12-20T16:15:54.691+00:00",
+                                "createdBy": "system",
+                                "modifiedOn": "2024-12-20T16:15:54.691+00:00",
+                                "modifiedBy": "system",
+                                "moleculeId": "5eb30c1d759cc0000174ffda",
+                                "retrosynthesisId": "67659828bf97167d064c7be4",
+                                "sequenceId": "6765983abf97167d064c7c82",
+                                "projectId": "66ffd98620ad5b594360efd7",
+                                "smiles": "O=C1CCC(=O)N1Br",
+                                "confidence": 1.0,
+                                "confidenceTag": None,
+                                "rclass": "Undefined",
+                                "hasFeedback": False,
+                                "feedback": None,
+                                "children": [],
+                                "metaData": {"borderColor": "#28a30d", "count": 1},
+                                "count": 1,
+                                "custom": False,
+                                "isConfidenceComputed": True,
+                                "isFromFile": False,
+                                "isTouched": False,
+                                "isThermal": False,
+                                "isPhotochemical": False,
+                                "isExpandable": False,
+                                "isEditable": False,
+                                "isCommercial": True,
+                                "isDeletable": False,
+                                "isChildrenEditable": False,
+                                "isChildrenDeletable": False,
+                            },
+                            {
+                                "id": "6765983abf97167d064c7c89",
+                                "metadata": {},
+                                "embed": {},
+                                "computedFields": {},
+                                "createdOn": "2024-12-20T16:15:54.704+00:00",
+                                "createdBy": "system",
+                                "modifiedOn": "2024-12-20T16:15:54.704+00:00",
+                                "modifiedBy": "system",
+                                "moleculeId": "64c0835c67a117001f2fecd0",
+                                "retrosynthesisId": "67659828bf97167d064c7be4",
+                                "sequenceId": "6765983abf97167d064c7c82",
+                                "projectId": "66ffd98620ad5b594360efd7",
+                                "smiles": "OCCc1cccc2cc3ccccc3cc12",
+                                "confidence": 1.0,
+                                "confidenceTag": None,
+                                "rclass": "Alkene hydration",
+                                "hasFeedback": False,
+                                "feedback": None,
+                                "children": [
+                                    {
+                                        "id": "6765983abf97167d064c7c86",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.694+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.694+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "5eb34bd2759cc00001752d1f",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c82",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "B1C2CCCC1CCC2",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": True,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                    {
+                                        "id": "6765983abf97167d064c7c87",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.698+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.698+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "5eb27acc759cc0000174d4b3",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c82",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "C1CCOC1",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {"borderColor": "#28a30d", "count": 1},
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": True,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                    {
+                                        "id": "6765983abf97167d064c7c88",
+                                        "metadata": {},
+                                        "embed": {},
+                                        "computedFields": {},
+                                        "createdOn": "2024-12-20T16:15:54.701+00:00",
+                                        "createdBy": "system",
+                                        "modifiedOn": "2024-12-20T16:15:54.701+00:00",
+                                        "modifiedBy": "system",
+                                        "moleculeId": "64c0835c67a117001f2fecd2",
+                                        "retrosynthesisId": "67659828bf97167d064c7be4",
+                                        "sequenceId": "6765983abf97167d064c7c82",
+                                        "projectId": "66ffd98620ad5b594360efd7",
+                                        "smiles": "C=Cc1cccc2cc3ccccc3cc12",
+                                        "confidence": 1.0,
+                                        "confidenceTag": None,
+                                        "rclass": "Undefined",
+                                        "hasFeedback": False,
+                                        "feedback": None,
+                                        "children": [],
+                                        "metaData": {
+                                            "molecule2commercial": False,
+                                            "molecule2expandable": True,
+                                            "borderColor": "#ce4e04",
+                                            "count": 1,
+                                        },
+                                        "count": 1,
+                                        "custom": False,
+                                        "isConfidenceComputed": True,
+                                        "isFromFile": False,
+                                        "isTouched": False,
+                                        "isThermal": False,
+                                        "isPhotochemical": False,
+                                        "isExpandable": False,
+                                        "isEditable": False,
+                                        "isCommercial": False,
+                                        "isDeletable": False,
+                                        "isChildrenEditable": False,
+                                        "isChildrenDeletable": False,
+                                    },
+                                ],
+                                "metaData": {"molecule2commercial": False, "molecule2expandable": True, "count": 1},
+                                "count": 1,
+                                "custom": False,
+                                "isConfidenceComputed": True,
+                                "isFromFile": False,
+                                "isTouched": False,
+                                "isThermal": False,
+                                "isPhotochemical": False,
+                                "isExpandable": False,
+                                "isEditable": False,
+                                "isCommercial": False,
+                                "isDeletable": False,
+                                "isChildrenEditable": False,
+                                "isChildrenDeletable": False,
+                            },
+                        ],
+                        "metaData": {"molecule2commercial": False, "molecule2expandable": True, "count": 1},
+                        "count": 1,
+                        "custom": False,
+                        "isConfidenceComputed": True,
+                        "isFromFile": False,
+                        "isTouched": False,
+                        "isThermal": False,
+                        "isPhotochemical": False,
+                        "isExpandable": False,
+                        "isEditable": False,
+                        "isCommercial": False,
+                        "isDeletable": False,
+                        "isChildrenEditable": False,
+                        "isChildrenDeletable": False,
+                    },
+                ],
+                "metaData": {"molecule2commercial": False, "molecule2expandable": True},
+                "count": None,
+                "custom": False,
+                "isConfidenceComputed": True,
+                "isFromFile": False,
+                "isTouched": False,
+                "isThermal": False,
+                "isPhotochemical": False,
+                "isExpandable": False,
+                "isEditable": False,
+                "isCommercial": False,
+                "isDeletable": False,
+                "isChildrenEditable": False,
+                "isChildrenDeletable": False,
+            },
+        ]

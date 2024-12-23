@@ -14,7 +14,7 @@ from openad_plugin_rxn.plugin_grammar_def import (
 )
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
 
-from openad_plugin_rxn.commands.predict_reactions.predict_reactions import predict_reactions
+from openad_plugin_rxn.commands.predict_reactions.predict_reactions import PredictReactions
 from openad_plugin_rxn.commands.predict_reactions.description import description
 
 # Login
@@ -52,8 +52,8 @@ class PluginCommand:
                         f_rom
                         + (
                             (py.Suppress("list") + list_quoted)("from_list")
-                            | (py.Suppress("file") + str_quoted)("from_file")
-                            | (py.Suppress("dataframe") + str_strict_or_quoted)("from_df")
+                            | (py.Suppress("file") + str_quoted("from_file"))
+                            | (py.Suppress("dataframe") + str_strict_or_quoted("from_df"))
                         )
                     )
                 )
@@ -88,4 +88,5 @@ class PluginCommand:
 
         # Execute
         cmd = parser.as_dict()
-        return predict_reactions(cmd_pointer, cmd)
+        predict_rections = PredictReactions(cmd_pointer, cmd)
+        return predict_rections.run()

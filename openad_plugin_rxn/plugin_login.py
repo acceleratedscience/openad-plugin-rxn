@@ -10,12 +10,12 @@ from openad.helpers.credentials import load_credentials, get_credentials, write_
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg
-from openad_plugin_rxn.rxn_helper import RXNHelper
+from openad_plugin_rxn.rxn_helper import RXNPlugin
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY
 from rxn4chemistry import RXN4ChemistryWrapper
 
 
-rxn_helper = RXNHelper()
+rxn_helper = RXNPlugin()
 
 API_CONFIG_BLANK = {"host": "None", "auth": {"username": "None", "api_key": "None"}, "verify_ssl": "false"}
 DEFAULT_URL = "https://rxn.app.accelerate.science"

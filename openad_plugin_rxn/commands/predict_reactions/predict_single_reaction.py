@@ -12,9 +12,9 @@ from openad.helpers.general import load_tk_module
 
 # Plugin
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY
-from openad_plugin_rxn.rxn_helper import RXNHelper
+from openad_plugin_rxn.rxn_helper import RXNPlugin
 
-rxn_helper = RXNHelper()
+rxn_helper = RXNPlugin()
 
 
 def get_reaction_from_smiles(

@@ -1,10 +1,6 @@
-def test():
-    x = 0
-    while x < 100:
-        print(x)
-        x = x + 1
-        if x >= 10:
-            return
+import pandas as pd
 
+data = [["A", "B", "C", "D"], ["E", "F", "G", "H"], ["I", "J", "K", "L"]]
 
-test()
+df = pd.DataFrame(data, headers=["AAA", "BBB", "CCC", "DDD"])
+print(df)

@@ -1,4 +1,5 @@
 from time import sleep
+import pandas as pd
 from IPython.display import display, HTML
 
 # OpenAD
@@ -105,7 +106,8 @@ class PredictRetro(RXNPlugin):
 
         # STEP 3: Display results or return data
         if GLOBAL_SETTINGS["display"] == "api":
-            return reactions_dict_list
+            df = self._create_df_output(reactions_dict_list)
+            return df
         else:
             self._display_results(reactions_dict_list)
 
@@ -469,6 +471,106 @@ class PredictRetro(RXNPlugin):
 
         return smiles
 
+    def _create_df_output(self, reactions_dict_list):
+        """
+        Turns the list of reaction trees into a dataframe for API output.
+
+        Takes the following data input (any number of nested steps):
+        [{
+            '_confidence': 1.0,
+            'value': 'HHH',
+            'children': [
+                'GGG',
+                {
+                    '_confidence': 0.7,
+                    'value': 'FFF',
+                    'children': [
+                        'EEE',
+                        {
+                            '_confidence': 0.6,
+                            'value': 'DDD',
+                            'children': [
+                                'AAA',
+                                'BBB',
+                                'CCC',
+                            ]
+                        },
+                    ]
+                },
+            ]
+        },
+        {
+            '_confidence': 1.0,
+            'value': 'RRR',
+            'children': [
+                'QQQ',
+                {
+                    '_confidence': 0.7,
+                    'value': 'PPP',
+                    'children': [
+                        'OOO',
+                        {
+                            '_confidence': 0.6,
+                            'value': 'NNN',
+                            'children': [
+                                'KKK',
+                                'LLL',
+                                'MMM',
+                            ]
+                        },
+                    ]
+                },
+            ]
+        }
+        ]
+
+        This gets converted into a dataframe as such:
+        Reaction,Result,Result confidence,Step -1,Step -1 confidence,Step -2,Step -1 confidence,Step -3
+        1,HHH,100%,GGG,,,,
+        1,HHH,100%,FFF,70%,EEE,,
+        1,HHH,100%,FFF,70%,DDD,60%,AAA
+        1,HHH,100%,FFF,70%,DDD,60%,BBB
+        1,HHH,100%,FFF,70%,DDD,60%,CCC
+        2,RRR,100%,QQQ,,,,
+        2,RRR,100%,PPP,70%,OOO,,
+        2,RRR,100%,PPP,70%,NNN,60%,KKK
+        2,RRR,100%,PPP,70%,NNN,60%,LLL
+        2,RRR,100%,PPP,70%,NNN,60%,MMM
+        """
+
+        def _parse_tree(row_base, tree_or_smiles, index, level):
+            new_row = row_base.copy() if row_base else {"Reaction Path #": index}
+            rows_output = []
+
+            # Compound value
+            if isinstance(tree_or_smiles, str):
+                smiles = tree_or_smiles
+                new_row[f"Step {level} Result"] = smiles
+                rows_output.append(new_row)
+
+            # Compound value with its own reaction
+            elif isinstance(tree_or_smiles, dict):
+                tree = tree_or_smiles
+                smiles = tree.get("value")
+                confidence = tree.get("_confidence")
+                children = tree.get("children", [])
+                new_row[f"Step {level} Result"] = smiles
+                new_row[f"Step {level} Confidence"] = confidence
+                for child in children:
+                    new_rows = _parse_tree(new_row, child, index, level=level - 1)
+                    rows_output.extend(new_rows)
+
+            return rows_output
+
+        parsed_data = []
+        for index, tree in enumerate(reactions_dict_list, start=1):
+            parsed_data.extend(_parse_tree(None, tree, index, level=0))
+
+        df = pd.DataFrame(parsed_data)
+        df.rename(columns={"Step 0 Result": "Result", "Step 0 Confidence": "Confidence"}, inplace=True)
+        df.fillna("", inplace=True)
+        return df
+
     def _display_results(self, reactions_dict_list):
         """
         Loop through the print strings of each reactions and print the total output.
@@ -482,7 +584,7 @@ class PredictRetro(RXNPlugin):
         for i, reactions_dict in enumerate(reactions_dict_list):
             reaction_print_str = self._get_print_str_reaction_tree([reactions_dict])
             output.append("")
-            output.append(f"<h1>Path #{i + 1}</h1>")
+            output.append(f"<h1>Reaction Path #{i + 1}</h1>")
             output.append(reaction_print_str)
 
         display(HTML("\n".join(output)))
@@ -491,6 +593,7 @@ class PredictRetro(RXNPlugin):
         """
         Return a placeholder result for debugging purposes.
         """
+
         return [
             {
                 "id": "6765983abf97167d064c7c77",

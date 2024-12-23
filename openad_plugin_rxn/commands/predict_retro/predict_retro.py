@@ -475,7 +475,7 @@ class PredictRetro(RXNPlugin):
         """
         Turns the list of reaction trees into a dataframe for API output.
 
-        Takes the following data input (any number of nested steps):
+        Input:
         [{
             '_confidence': 1.0,
             'value': 'HHH',
@@ -524,18 +524,18 @@ class PredictRetro(RXNPlugin):
         }
         ]
 
-        This gets converted into a dataframe as such:
-        Reaction,Result,Result confidence,Step -1,Step -1 confidence,Step -2,Step -1 confidence,Step -3
-        1,HHH,100%,GGG,,,,
-        1,HHH,100%,FFF,70%,EEE,,
-        1,HHH,100%,FFF,70%,DDD,60%,AAA
-        1,HHH,100%,FFF,70%,DDD,60%,BBB
-        1,HHH,100%,FFF,70%,DDD,60%,CCC
-        2,RRR,100%,QQQ,,,,
-        2,RRR,100%,PPP,70%,OOO,,
-        2,RRR,100%,PPP,70%,NNN,60%,KKK
-        2,RRR,100%,PPP,70%,NNN,60%,LLL
-        2,RRR,100%,PPP,70%,NNN,60%,MMM
+        Output:
+            Reaction    Result    Confidence    Step -1 Result    Step -1 Confidence    Step -2 Result    Step -1 Confidence    Step -3 Result
+            1           HHH       100%          GGG
+            1           HHH       100%          FFF               70%                   EEE
+            1           HHH       100%          FFF               70%                   DDD               60%                   AAA
+            1           HHH       100%          FFF               70%                   DDD               60%                   BBB
+            1           HHH       100%          FFF               70%                   DDD               60%                   CCC
+            2           RRR       100%          QQQ
+            2           RRR       100%          PPP               70%                   OOO
+            2           RRR       100%          PPP               70%                   NNN               60%                   KKK
+            2           RRR       100%          PPP               70%                   NNN               60%                   LLL
+            2           RRR       100%          PPP               70%                   NNN               60%                   MMM
         """
 
         def _parse_tree(row_base, tree_or_smiles, index, level):

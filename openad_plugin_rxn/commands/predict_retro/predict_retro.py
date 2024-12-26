@@ -567,13 +567,13 @@ class PredictRetro(RXNPlugin):
         """
 
         def _parse_tree(row_base, tree_or_smiles, index, level):
-            new_row = row_base.copy() if row_base else {"Reaction Path #": index}
+            new_row = row_base.copy() if row_base else {"reaction_path_index": index}
             rows_output = []
 
             # Compound value
             if isinstance(tree_or_smiles, str):
                 smiles = tree_or_smiles
-                new_row[f"Step {level} Result"] = smiles
+                new_row[f"compound [step {level}]"] = smiles
                 rows_output.append(new_row)
 
             # Compound value with its own reaction
@@ -582,8 +582,8 @@ class PredictRetro(RXNPlugin):
                 smiles = tree.get("value")
                 confidence = tree.get("_confidence")
                 children = tree.get("children", [])
-                new_row[f"Step {level} Result"] = smiles
-                new_row[f"Step {level} Confidence"] = confidence
+                new_row[f"compound [step {level}]"] = smiles
+                new_row[f"confidence [step {level}]"] = confidence
                 for child in children:
                     new_rows = _parse_tree(new_row, child, index, level=level - 1)
                     rows_output.extend(new_rows)
@@ -595,7 +595,7 @@ class PredictRetro(RXNPlugin):
             parsed_data.extend(_parse_tree(None, tree, index, level=0))
 
         df = pd.DataFrame(parsed_data)
-        df.rename(columns={"Step 0 Result": "Result", "Step 0 Confidence": "Confidence"}, inplace=True)
+        df.rename(columns={"compound [step 0]": "result", "confidence [step 0]": "confidence"}, inplace=True)
         df.fillna("", inplace=True)
         return df
 

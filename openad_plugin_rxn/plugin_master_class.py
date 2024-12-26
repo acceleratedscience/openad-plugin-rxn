@@ -1,18 +1,17 @@
 import os
 import json
 import pickle
-import string
-import hashlib
 import pandas as pd
 from time import sleep
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.helpers.jupyter import parse_using_clause
-from openad.helpers.output import output_error
+from openad.helpers.output import output_text, output_success, output_warning, output_error
 
 # Plugin
-from openad_plugin_rxn.plugin_params import PLUGIN_KEY
+from openad_plugin_rxn.plugin_login import RXNLoginManager
+from openad_plugin_rxn.plugin_params import PLUGIN_KEY, PLUGIN_NAME
 
 spinner_msg = [
     "",
@@ -29,13 +28,40 @@ spinner_msg = [
 
 class RXNPlugin:
 
-    _RXN_VARS_TEMPLATE = {"current_project": None, "current_project_id": None}
+    cmd_pointer = None
+    login_manager = None
+    api = None
 
-    def __init__(self):
-        pass
+    def __init__(self, cmd_pointer):
+        self.cmd_pointer = cmd_pointer
+
+        # Login
+        self.login_manager = RXNLoginManager(self, cmd_pointer)
+        self.login_manager.login()
+
+        # Define the RXN API
+        self.api = cmd_pointer.login_settings["client"][cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)]
 
     # Utility functions
     # -----------------
+
+    def parse_using_params(self, cmd, default_values):
+        """
+        Parse the parameters from the USING clause.
+        """
+
+        # Parse parameters from the USING clause
+        using_params = parse_using_clause(
+            cmd.get("using"),
+            allowed=default_values.keys(),
+        )
+
+        # Assign default parameters
+        for key, val in default_values.items():
+            if key not in using_params:
+                using_params[key] = val
+
+        return using_params
 
     def get_dataframe_from_file(self, cmd_pointer, filename: str) -> pd.DataFrame:
         """
@@ -317,6 +343,50 @@ class RXNPlugin:
     #
     #
     #
+
+    # Caching
+    # -------
+
+    def store_result_cache(self, cmd_pointer, name, key, payload) -> bool:
+        """
+        Save a result to the cache.
+
+        /<workspace>/._openad/rxn_cache/rxn-<func_name>-<model_name>--<input_smiles>.result
+        """
+        try:
+            filename = f"rxn-{name}--{key}.result"
+            cache_dir = self._get_cache_dir(cmd_pointer)
+            with open(os.path.join(cache_dir, filename), "wb") as handle:
+                pickle.dump({"payload": payload}, handle)
+            return True
+        except Exception as err:  # pylint: disable=broad-except
+            output_error(["Failed to save result as cache", f"Data: {payload}", err], return_val=False)
+            return False
+
+    def retrieve_result_cache(self, cmd_pointer, name, key):
+        """
+        Retrieve result from the cache.
+        """
+        try:
+            filename = f"rxn-{name}--{key}.result"
+            cache_dir = self._get_cache_dir(cmd_pointer)
+            with open(os.path.join(cache_dir, filename), "rb") as handle:
+                result = pickle.load(handle)
+            return result.get("payload")
+        except Exception:  # pylint: disable=broad-except
+            return False
+
+    def _get_cache_dir(self, cmd_pointer):
+        """
+        Get the cache directory, create if it doesn't exist yet.
+        """
+        cache_dir = os.path.join(cmd_pointer.workspace_path(), "._openad", "rxn_cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        return cache_dir
+
+    #
+    #
+    #
     #
 
     def append_project(self, cmd_pointer, project_name, project_id):
@@ -376,36 +446,6 @@ class RXNPlugin:
     def homogenize(self, smiles_list: list) -> str:
         smiles_list.sort()
         return ".".join(smiles_list)
-
-    # Save a result to thge cache
-    # /<workspace>/._openad/rxn_cache/rxn-<func_name>-<model_name>--<input_smiles>.result
-    def store_result_cache(self, cmd_pointer, name, key, payload) -> bool:
-        try:
-            filename = f"rxn-{name}--{key}.result"
-            cache_dir = self._get_cache_dir(cmd_pointer)
-            with open(os.path.join(cache_dir, filename), "wb") as handle:
-                pickle.dump({"payload": payload}, handle)
-            return True
-        except Exception as err:  # pylint: disable=broad-except
-            output_error(["Failed to save result as cache", f"Data: {payload}", err], return_val=False)
-            return False
-
-    # Retrieve result from the cache
-    def retrieve_result_cache(self, cmd_pointer, name, key):
-        try:
-            filename = f"rxn-{name}--{key}.result"
-            cache_dir = self._get_cache_dir(cmd_pointer)
-            with open(os.path.join(cache_dir, filename), "rb") as handle:
-                result = pickle.load(handle)
-            return result.get("payload")
-        except Exception:  # pylint: disable=broad-except
-            return False
-
-    # Create the cache directories if they don't exist
-    def _get_cache_dir(self, cmd_pointer):
-        cache_dir = os.path.join(cmd_pointer.workspace_path(), "._openad", "rxn_cache")
-        os.makedirs(cache_dir, exist_ok=True)
-        return cache_dir
 
     # sets the current project
     def set_current_project(self, cmd_pointer, project_name: str) -> bool:
@@ -565,191 +605,6 @@ class RXNPlugin:
 
         df = df[["name", "description", "id", "attempts"]]
         return df
-
-    def output(self, text, cmd_pointer=None):
-        if GLOBAL_SETTINGS["display"] == "notebook":
-            from IPython.display import Markdown, display
-        import re
-
-        tags = {
-            "h1": "\x1b[0m",  # Primary headers: default with yellow line below
-            "h2": "\x1b[33m",  # Secondary headers: yellow
-            "cmd": "\x1b[36m",  # Commands: cyan
-            "error": "\x1b[31m",  # Errors: red
-            "warning": "\x1b[33m",  # Warnings: yellow
-            "success": "\x1b[32m",  # Success: green
-            "link": "\x1b[4;94m",  # Links: undertline intense blue
-            # 'edit': '\x1b[0;47;30m',  # Edit node: black on white
-            "edit": "\x1b[7m",  # Edit node: reverse
-            "editable": "\x1b[100m",  # Editable text: on_bright_black
-            # Styles
-            "reset": "\x1b[0m",
-            "bold": "\x1b[1m",
-            "soft": "\x1b[2m",
-            "italic": "\x1b[3m",
-            "underline": "\x1b[4m",
-            "blink": "\x1b[5m",
-            "reverse": "\x1b[7m",
-            "hidden": "\x1b[8m",
-            "strikethrough": "\x1b[9m",
-            # Foreground colors - Regular
-            "black": "\x1b[30m",
-            "red": "\x1b[31m",
-            "green": "\x1b[32m",
-            "yellow": "\x1b[33m",
-            "blue": "\x1b[34m",
-            "magenta": "\x1b[35m",
-            "cyan": "\x1b[36m",
-            "white": "\x1b[37m",
-            # Foreground colors - Intense (non-standard)
-            "bright_black": "\x1b[90m",
-            "bright_red": "\x1b[91m",
-            "bright_green": "\x1b[92m",
-            "bright_yellow": "\x1b[93m",
-            "bright_blue": "\x1b[94m",
-            "bright_magenta": "\x1b[95m",
-            "bright_cyan": "\x1b[96m",
-            "bright_white": "\x1b[97m",
-            # Background colors - Regular
-            "on_black": "\x1b[0;40m",
-            "on_red": "\x1b[0;41m",
-            "on_green": "\x1b[0;42m",
-            "on_yellow": "\x1b[0;43m",
-            "on_blue": "\x1b[0;44m",
-            "on_magenta": "\x1b[0;45m",
-            "on_cyan": "\x1b[0;46m",
-            "on_white": "\x1b[0;47m",
-            # Background colors - Intense (non-standard)
-            "on_bright_black": "\x1b[100m",
-            "on_bright_red": "\x1b[101m",
-            "on_bright_green": "\x1b[102m",
-            "on_bright_yellow": "\x1b[103m",
-            "on_bright_blue": "\x1b[104m",
-            "on_bright_magenta": "\x1b[105m",
-            "on_bright_cyan": "\x1b[106m",
-            "on_bright_white": "\x1b[107m",
-            # Unused but useful as a reference
-            # \x1b[7m - Reversed
-        }
-
-        def parse_tags(text: str):
-            """
-            Parse xml tags and return styled output:
-            <red>lorem ipsum</red>
-            """
-            pattern = rf"(.*?)<({'|'.join(list(tags))})>(.*?)</\2>"
-            return re.sub(pattern, lambda match: _replace(match, pattern), text)
-
-        def _replace(match: object, pattern, parent_tag="reset"):
-            """Replace regex matches with appropriate styling."""
-            text_before = match.group(1)
-            tag = match.group(2)
-            inner_text = match.group(3)
-            ansi_code_open = tags[tag]
-            ansi_code_close = tags[parent_tag]
-            ansi_code_reset = tags["reset"]
-
-            # Replace any nested tags.
-            if re.findall(pattern, inner_text):
-                inner_text = re.sub(pattern, lambda match: _replace(match, pattern, tag), inner_text)
-
-            return f"{text_before}{ansi_code_open}{inner_text}{ansi_code_reset}{ansi_code_close}"
-
-        def strip_tags(text: str):
-            """Recursively remove all XML tags."""
-
-            # Strip any nested tags.
-            def _strip(match: object, pattern):
-                inner_text = match.group(2)
-                if re.findall(pattern, inner_text):
-                    inner_text = re.sub(pattern, lambda match: _strip(match, pattern), inner_text)
-                return inner_text
-
-            # Strip tags.
-            text = text.replace("\n", "---LINEBREAK2---")
-            pattern = rf"<({'|'.join(list(tags))})>(.*?)</\1>"
-            text = re.sub(pattern, lambda match: _strip(match, pattern), text)
-            return text.replace("---LINEBREAK2---", "\n")
-
-        def tags_to_markdown(text: str):
-            if text is None:
-                return ""
-
-            # Replace leading spaces with non-breaking spaces.
-            text = re.sub(r"^( *)", "", text, flags=re.MULTILINE)
-
-            # Replace line breaks so all text is parsed on one line.
-            # Because html breaks (<br>) don't play well with headings,
-            # and end of line characters don't play well with `code`
-            # blocks, we have to do some trickery here.
-            text = re.sub(
-                r"(</h[123]>)(\n+)", lambda match: match.group(1) + len(match.group(2)) * "---LINEBREAKSOFT---", text
-            )
-            text = re.sub(
-                r"(\n+)(<h[123]>)", lambda match: len(match.group(1)) * "---LINEBREAKSOFT---" + match.group(2), text
-            )
-            text = text.replace("\n", "---LINEBREAK3---")
-
-            # Replace tags
-            # We only replace <soft> and <underline> tags
-            # when they don't appear inside <cmd> tags.
-            text = re.sub(r"(?<!\<cmd\>)<soft>([^<]*)</soft>(?!\</cmd\>)", r'<span style="color: #ccc">\1</span>', text)
-            text = re.sub(
-                r"(?<!\<cmd\>)<underline>([^<]*)<\/underline>(?!\</cmd\>)",
-                r'<span style="text-decoration: underline">\1</span>',
-                text,
-            )
-            text = re.sub(r"<h1>(.*?)<\/h1>", r"## \1", text)
-            text = re.sub(r"<h2>(.*?)<\/h2>", r"### \1", text)
-            text = re.sub(r"<link>(.*?)<\/link>", r'<a target="_blank" href="\1">\1</a>', text)
-            text = re.sub(r"<bold>(.*?)<\/bold>", r"**\1**", text)
-            text = re.sub(r"<cmd>(.*?)<\/cmd>", r"`\1`", text)
-            text = re.sub(r"<on_red>(.*?)<\/on_red>", r'<span style="background: #d00; color: #fff">\1</span>', text)
-            text = re.sub(
-                r"<on_green>(.*?)<\/on_green>", r'<span style="background: #0d0; color: #fff">\1</span>', text
-            )
-            text = re.sub(r"<success>(.*?)<\/success>", r'<span style=" color: #008000">\1</span>', text)
-            text = re.sub(r"<fail>(.*?)<\/fail>", r'<span style=" color: #ff0000">\1</span>', text)
-
-            # Escape quotes.
-            text = text.replace("'", "'")
-
-            # Replace all other tags
-            text = strip_tags(text)
-
-            # Restore line breaks.
-            text = text.replace("---LINEBREAKSOFT---", "\n")
-            text = text.replace("---LINEBREAK3---", "<br>")
-
-            return text
-
-        if GLOBAL_SETTINGS["display"] == "api":
-            # API
-            return strip_tags(text)
-        elif GLOBAL_SETTINGS["display"] == "notebook":
-            # Jupyter
-            return Markdown(tags_to_markdown(text))
-        else:
-            # CLI
-            print(parse_tags(str(text)))
-
-    def parse_using_params(self, cmd, default_values):
-        """
-        Parse the parameters from the USING clause.
-        """
-
-        # Parse parameters from the USING clause
-        using_params = parse_using_clause(
-            cmd.get("using"),
-            allowed=default_values.keys(),
-        )
-
-        # Assign default parameters
-        for key, val in default_values.items():
-            if key not in using_params:
-                using_params[key] = val
-
-        return using_params
 
 
 # def generate_smiles_hash(smiles_string):

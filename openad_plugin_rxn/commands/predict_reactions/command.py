@@ -5,20 +5,16 @@ import pyparsing as py
 from openad.core.help import help_dict_create_v2
 
 # Plugin
-from openad_grammar_def import list_quoted, str_quoted, str_strict_or_quoted
+from openad_grammar_def import list_quoted, str_quoted, str_strict_or_quoted, clause_save_as
 from openad_plugin_rxn.plugin_grammar_def import (
     predict,
     reaction_s,
     f_rom,
     clause_no_cache,
 )
-from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
-
-from openad_plugin_rxn.commands.predict_reactions.predict_reactions import PredictReactions
 from openad_plugin_rxn.commands.predict_reactions.description import description
-
-# Login
-from openad_plugin_rxn.plugin_login import login
+from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
+from openad_plugin_rxn.commands.predict_reactions.predict_reactions import PredictReactions
 
 
 class PluginCommand:
@@ -30,7 +26,7 @@ class PluginCommand:
     parser_id: str  # Internal unique identifier
 
     def __init__(self):
-        self.category = "General"
+        self.category = "Prediction"
         self.index = 0
         self.name = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         self.parser_id = f"plugin_{PLUGIN_KEY}_{self.name}"
@@ -58,12 +54,13 @@ class PluginCommand:
                     )
                 )
                 + clause_no_cache
+                + clause_save_as
             )(self.parser_id)
         )
 
         # Command help
-        clauses_single = "[ USING (ai_model='<ai_model>') ] [ use saved ]"
-        clauses_multiple = "[ USING (ai_model='<ai_model>' <topn>=<integer>) ] [ use saved ]"
+        clauses_single = "[ USING (ai_model='<ai_model>') ] [ no cache ]"
+        clauses_multiple = "[ USING (ai_model='<ai_model>' <topn>=<integer>) ] [ no cache ]"
         grammar_help.append(
             help_dict_create_v2(
                 plugin_name=PLUGIN_NAME,
@@ -82,11 +79,6 @@ class PluginCommand:
 
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
-
-        # Login
-        login(cmd_pointer)
-
-        # Execute
         cmd = parser.as_dict()
         predict_rections = PredictReactions(cmd_pointer, cmd)
         return predict_rections.run()

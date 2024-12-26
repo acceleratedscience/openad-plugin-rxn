@@ -6,14 +6,11 @@ from openad.core.help import help_dict_create_v2
 
 # Plugin
 from openad_grammar_def import molecule_identifier, clause_using
-from openad_plugin_rxn.plugin_grammar_def import predict, retrosynthesis
+from openad_plugin_rxn.plugin_grammar_def import predict, retrosynthesis, clause_no_cache
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
 
 from openad_plugin_rxn.commands.predict_retro.predict_retro import PredictRetro
 from openad_plugin_rxn.commands.predict_retro.description import description
-
-# Login
-from openad_plugin_rxn.plugin_login import login
 
 
 class PluginCommand:
@@ -36,7 +33,12 @@ class PluginCommand:
         # Command definition
         statements.append(
             py.Forward(
-                py.Word(PLUGIN_NAMESPACE) + predict + retrosynthesis + molecule_identifier("smiles") + clause_using
+                py.Word(PLUGIN_NAMESPACE)
+                + predict
+                + retrosynthesis
+                + molecule_identifier("smiles")
+                + clause_using
+                + clause_no_cache
             )(self.parser_id)
         )
 
@@ -46,7 +48,7 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=f"{PLUGIN_NAMESPACE} predict retrosynthesis|retro '<smiles>' [ USING (<parameter>=<value> <parameter>=<value>) ]",
+                command=f"{PLUGIN_NAMESPACE} predict retrosynthesis|retro '<smiles>' [ USING (<parameter>=<value> <parameter>=<value>) ] [ no cache ]",
                 description=description,
                 note=CMD_NOTE,
             )
@@ -54,12 +56,6 @@ class PluginCommand:
 
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
-
-        # Login
-        login(cmd_pointer)
-
-        # Execute
         cmd = parser.as_dict()
-        # print(cmd)
         predict_retro = PredictRetro(cmd_pointer, cmd)
         return predict_retro.run()

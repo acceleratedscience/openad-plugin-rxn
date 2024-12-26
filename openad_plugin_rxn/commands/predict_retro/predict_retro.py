@@ -13,16 +13,13 @@ from openad.helpers.general import get_print_width
 from openad.helpers.jupyter import jup_display_input_molecule
 
 # Plugin
-from openad_plugin_rxn.rxn_helper import RXNPlugin
+from openad_plugin_rxn.plugin_master_class import RXNPlugin
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY
 
 
 class PredictRetro(RXNPlugin):
     """
-    Perform RXN retrosynthesis prediction.
-
-    Consumes a pyparsing dictionary with either:
-
+    Predict retrosynthesis pathways using the RXN API.
     """
 
     cmd_pointer = None
@@ -61,8 +58,15 @@ class PredictRetro(RXNPlugin):
     debug = False
 
     def __init__(self, cmd_pointer, cmd):
-        super().__init__()
-        self.cmd_pointer = cmd_pointer
+        """
+        Parameters
+        ----------
+        cmd_pointer:
+            The command pointer object
+        cmd: dict
+            Parser inputs from pyparsing as a dictionary
+        """
+        super().__init__(cmd_pointer)
         self.cmd = cmd
 
     def run(self):
@@ -74,11 +78,12 @@ class PredictRetro(RXNPlugin):
 
         # Check if result is in cache
         input_smiles_key = canonicalize(self.input_smiles)
-        self.result_from_cache = super().retrieve_result_cache(
-            self.cmd_pointer,
-            name=f"predict-retro-{self.using_params.get('ai_model')}",
-            key=input_smiles_key,
-        )
+        if not self.no_cache:
+            self.result_from_cache = self.retrieve_result_cache(
+                self.cmd_pointer,
+                name=f"predict-retro-{self.using_params.get('ai_model')}",
+                key=input_smiles_key,
+            )
 
         # Not in cache -> run the job
         if not self.result_from_cache:
@@ -100,7 +105,7 @@ class PredictRetro(RXNPlugin):
                     return
 
             # Save result in cache
-            super().store_result_cache(
+            self.store_result_cache(
                 self.cmd_pointer,
                 name=f"predict-retro-{self.using_params.get('ai_model')}",
                 key=input_smiles_key,
@@ -138,14 +143,8 @@ class PredictRetro(RXNPlugin):
             self._display_results(reactions_dict_list)
 
     def _setup(self):
-        # Define the RXN API
-        self.api = self.cmd_pointer.login_settings["client"][
-            self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
-        ]
-
-        # Setup
-        super().sync_up_workspace_name(self.cmd_pointer)
-        super().get_current_project(self.cmd_pointer)
+        self.sync_up_workspace_name(self.cmd_pointer)
+        self.get_current_project(self.cmd_pointer)
 
     def _parse_input(self):
         """
@@ -164,7 +163,10 @@ class PredictRetro(RXNPlugin):
             )
 
         # Parse parameters from the USING clause
-        self.using_params = super().parse_using_params(self.cmd, self.using_params_defaults)
+        self.using_params = self.parse_using_params(self.cmd, self.using_params_defaults)
+
+        # Parse no_cache clause
+        self.no_cache = bool(self.cmd.get("no_cache"))
 
     def _api_get_task_id(self):
         """
@@ -390,7 +392,7 @@ class PredictRetro(RXNPlugin):
                 output.append(self.__get_print_str_reaction_tree_jup(item.get("children", []), level=level + 1))
 
                 # Add confidence
-                confidence_print_str_list = super().get_print_str_list__confidence(confidence)
+                confidence_print_str_list = self.get_print_str_list__confidence(confidence)
                 confidence_print_str = "<br>" + "".join(confidence_print_str_list)
                 output.append(confidence_print_str)
 
@@ -460,7 +462,7 @@ class PredictRetro(RXNPlugin):
                 )
 
                 # Add confidence
-                confidence_print_str_list = super().get_print_str_list__confidence(confidence)
+                confidence_print_str_list = self.get_print_str_list__confidence(confidence)
                 for confidence_print_str in confidence_print_str_list:
                     output += f"{prepend_str}<soft>│ </soft>{confidence_print_str}\n"
 
@@ -605,7 +607,7 @@ class PredictRetro(RXNPlugin):
         output = []
 
         # Optional CACHED flag
-        flag = super().get_flag("cached") if self.result_from_cache else ""
+        flag = self.get_flag("cached") if self.result_from_cache else ""
 
         # Assemble results
         for i, reactions_dict in enumerate(reactions_dict_list):

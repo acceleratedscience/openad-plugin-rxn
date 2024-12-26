@@ -1,3 +1,4 @@
+import pandas as pd
 from time import sleep
 from rdkit.Chem import AllChem
 from rdkit.Chem.Draw import rdMolDraw2D
@@ -9,11 +10,11 @@ from openad.smols.smol_functions import valid_smiles
 from openad.helpers.spinner import spinner
 from openad.helpers.output import output_text, output_error
 from openad.plugins.style_parser import tags_to_markdown
+from openad.helpers.jupyter import save_df_as_csv
 
 
 # Plugin
-from openad_plugin_rxn.plugin_params import PLUGIN_KEY
-from openad_plugin_rxn.rxn_helper import RXNPlugin
+from openad_plugin_rxn.plugin_master_class import RXNPlugin
 
 
 class PredictReactions(RXNPlugin):
@@ -57,14 +58,50 @@ class PredictReactions(RXNPlugin):
         "topn": 10,
     }
 
+    # Result
+    reaction_predictions = None  # Prediction data as returned by the API
+    output_data = None  # Prediction data formatted for API output / save_as file
+
     def __init__(self, cmd_pointer, cmd):
-        super().__init__()
-        self.cmd_pointer = cmd_pointer
+        """
+        Parameters
+        ----------
+        cmd_pointer:
+            The command pointer object
+        cmd: dict
+            Parser inputs from pyparsing as a dictionary
+        """
+        super().__init__(cmd_pointer)
         self.cmd = cmd
 
+    def _setup(self):
+        self.sync_up_workspace_name(self.cmd_pointer)
+        self.get_current_project(self.cmd_pointer)
+
+        # Parse command
+        self.reactions_list = self._parse_reactions_list()
+        self.using_params = self.parse_using_params(self.cmd, self.using_params_defaults)
+        self.no_cache = bool(self.cmd.get("no_cache"))
+
+        if not self.reactions_list:
+            return False
+
+        # Set aside reactions that are invalid or cached
+        reactions_to_be_skipped = self._sort_reactions()
+        self.cached_reactions = reactions_to_be_skipped.get("cached_reactions", {})
+        self.invalid_reactions = reactions_to_be_skipped.get("invalid_reactions", {})
+        self.skip_count = reactions_to_be_skipped.get("count", 0)
+
+        return True
+
     def run(self):
+        """
+        Run the command.
+        """
         if not self._setup():
             return
+
+        self.output_data = []
 
         # Run reaction query
         # ------------------
@@ -83,8 +120,8 @@ class PredictReactions(RXNPlugin):
                 return
 
             # Step 2 - Get the reaction results
-            reaction_predictions = self._api_get_results(task_id)
-            if not reaction_predictions:
+            self.reaction_predictions = self._api_get_results(task_id)
+            if not self.reaction_predictions:
                 return
 
             # Insert None values in the reaction_predictions list
@@ -92,7 +129,7 @@ class PredictReactions(RXNPlugin):
             # so indices match between reactions_list and reaction_predictions
             for reaction in self.reactions_list:
                 if reaction in self.invalid_reactions:
-                    reaction_predictions.insert(self.reactions_list.index(reaction), None)
+                    self.reaction_predictions.insert(self.reactions_list.index(reaction), None)
 
         # Loop through reaction results and print them
         for i, reaction in enumerate(self.reactions_list):
@@ -101,20 +138,32 @@ class PredictReactions(RXNPlugin):
 
             # PRINT REACTION - INVALID REACTIONS
             # ----------------------------------
-            # if reaction in invalid_reactions_print_str: %%
             if reaction in self.invalid_reactions:
-                self._display_reaction(index, reaction, invalid_smiles=self.invalid_reactions[reaction])
+                invalid_smiles = self.invalid_reactions[reaction]
+                self._add_to_output_data(
+                    reaction,
+                    error={
+                        "message": "Invalid smiles",
+                        "invalid_smiles": invalid_smiles,
+                    },
+                )
+                self._display_reaction(index, reaction, invalid_smiles=invalid_smiles)
                 continue
 
             # PRINT REACTION - CACHED REACTIONS
             # ---------------------------------
             if reaction in self.cached_reactions:
                 cached_prediction = self.cached_reactions[reaction]
-                self._display_reaction(index, reaction, cached_prediction, is_cached=True)
+                self._add_to_output_data(
+                    reaction,
+                    cached_prediction,
+                    from_cache=True,
+                )
+                self._display_reaction(index, reaction, cached_prediction, from_cache=True)
                 continue
 
             # Get newly generated prediction data
-            prediction = reaction_predictions[i]
+            prediction = self.reaction_predictions[i]
 
             # Save result in cache
             # - - -
@@ -123,8 +172,8 @@ class PredictReactions(RXNPlugin):
             # - - -
             # 1) Input smiles
             input_smiles = reaction.split(".")
-            input_smiles_key = super().homogenize(input_smiles)
-            super().store_result_cache(
+            input_smiles_key = self.homogenize(input_smiles)
+            self.store_result_cache(
                 self.cmd_pointer,
                 name=f"predict-reaction-{self.using_params.get('ai_model')}",
                 key=input_smiles_key,
@@ -132,8 +181,8 @@ class PredictReactions(RXNPlugin):
             )
             # 2) Canonicalized smiles from RXN
             prediction_smiles = prediction.get("smiles", "").split(">>")[0].split(".")
-            prediction_smiles_key = super().homogenize(prediction_smiles)
-            super().store_result_cache(
+            prediction_smiles_key = self.homogenize(prediction_smiles)
+            self.store_result_cache(
                 self.cmd_pointer,
                 name=f"predict-reaction-{self.using_params.get('ai_model')}",
                 key=prediction_smiles_key,
@@ -142,38 +191,24 @@ class PredictReactions(RXNPlugin):
 
             # PRINT REACTION - NEWLY GENERATED REACTIONS
             # ------------------------------------------
+            self._add_to_output_data(
+                reaction,
+                prediction,
+            )
             self._display_reaction(index, reaction, prediction)
 
+        # Convert to DataFrame
+        df = pd.DataFrame.from_dict(self.output_data)
+        df = df.fillna("")  # Replace NaN with empty string
+
+        # Save results to file (prints success message)
+        if "save_as" in self.cmd:
+            results_file = str(self.cmd["results_file"])
+            save_df_as_csv(self.cmd_pointer, df, results_file)
+
+        # Return data in API mode
         if GLOBAL_SETTINGS["display"] == "api":
-            return reaction_predictions.get("predictions")
-        else:
-            return None
-
-    def _setup(self):
-        # Define the RXN API
-        self.api = self.cmd_pointer.login_settings["client"][
-            self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
-        ]
-
-        # Setup
-        super().sync_up_workspace_name(self.cmd_pointer)
-        super().get_current_project(self.cmd_pointer)
-
-        # Parse command
-        self.reactions_list = self._parse_reactions_list()
-        self.using_params = super().parse_using_params(self.cmd, self.using_params_defaults)
-        self.no_cache = bool(self.cmd.get("no_cache"))
-
-        if not self.reactions_list:
-            return False
-
-        # Set aside reactions that are invalid or cached
-        reactions_to_be_skipped = self._sort_reactions()
-        self.cached_reactions = reactions_to_be_skipped.get("cached_reactions", {})
-        self.invalid_reactions = reactions_to_be_skipped.get("invalid_reactions", {})
-        self.skip_count = reactions_to_be_skipped.get("count", 0)
-
-        return True
+            return df
 
     def _parse_reactions_list(self):
         """
@@ -195,21 +230,21 @@ class PredictReactions(RXNPlugin):
 
                 # CSV file
                 if ext == "csv":
-                    reactions_df = super().get_dataframe_from_file(self.cmd_pointer, from_file)
+                    reactions_df = self.get_dataframe_from_file(self.cmd_pointer, from_file)
                     if reactions_df is None:
                         return
                     else:
-                        from_list = super().get_column_as_list_from_dataframe(reactions_df, "reactions")
+                        from_list = self.get_column_as_list_from_dataframe(reactions_df, "reactions")
                         if not from_list:
                             return output_error("No reactions found in CSV file, file should have column 'reactions'")
-                        super().validate_reactions_list(from_list)
+                        self.validate_reactions_list(from_list)
 
                 # TXT file
                 elif ext == "txt":
-                    from_list = super().get_list_from_txt_file(self.cmd_pointer, from_file)
+                    from_list = self.get_list_from_txt_file(self.cmd_pointer, from_file)
                     if not from_list:
                         return output_error("No reactions found in TXT file, file seems to be empty")
-                    super().validate_reactions_list(from_list)
+                    self.validate_reactions_list(from_list)
 
                 # Invalid file format
                 else:
@@ -221,7 +256,7 @@ class PredictReactions(RXNPlugin):
             if reactions_df is None:
                 return
             else:
-                from_list = super().get_column_as_list_from_dataframe(reactions_df, "reactions")
+                from_list = self.get_column_as_list_from_dataframe(reactions_df, "reactions")
                 if not from_list:
                     return output_error(
                         ["No reactions found", "Dataframe should have a 'reactions' column"], return_val=False
@@ -258,8 +293,8 @@ class PredictReactions(RXNPlugin):
 
             # Check for cached results
             elif not self.no_cache:
-                input_smiles_key = super().homogenize(input_smiles)
-                result_from_cache = super().retrieve_result_cache(
+                input_smiles_key = self.homogenize(input_smiles)
+                result_from_cache = self.retrieve_result_cache(
                     self.cmd_pointer,
                     name=f"predict-reaction-{self.using_params.get('ai_model')}",
                     key=input_smiles_key,
@@ -351,13 +386,69 @@ class PredictReactions(RXNPlugin):
         spinner.succeed("Done")
         return response.get("predictions")
 
+    def _add_to_output_data(self, reaction, prediction=None, from_cache=False, error=None):
+        """
+        Add a reaction entry to the output data, which will be used to create a DataFrame.
+
+        Parameters
+        ----------
+        reaction: str
+            Reaction smiles string as it was passed by the user.
+            AA.BB.CC
+        prediction: dict
+            Prediction data for the reaction, as returned by the API.
+            {
+                'confidence': 0.9999999999999999,
+                'smiles': 'AA.BB.CC>>DD',
+                'photochemical': False,
+                'thermal': False
+            }
+        from_cache: bool
+            Wether the reaction was previously cached.
+        error: dict
+            Error data for the reaction, if the reaction is invalid.
+            {
+                'message': 'Invalid smiles',
+                'invalid_smiles': ['BrBr']
+            }
+        """
+
+        # Separate input and output smiles
+        prediction = prediction or {}
+        input_smiles = reaction.split(".")
+        prediction_smiles = prediction.get("smiles")
+        output_smiles = (prediction_smiles or "").split(">>")
+        output_smiles = output_smiles[1] if len(output_smiles) > 1 else None
+
+        # Create entry
+        new_entry = {"input": input_smiles}
+        for i, inp in enumerate(input_smiles, start=1):
+            new_entry[f"input_{i}"] = inp
+        if error:
+            new_entry["error_message"] = error.get("message")
+            new_entry["invalid_smiles"] = error.get("invalid_smiles")
+
+        else:
+            new_entry["output"] = output_smiles
+            new_entry["reaction"] = prediction_smiles
+            new_entry["from_cache"] = bool(from_cache)
+
+        # Unfold prediction data into the parent object, so one
+        # dataframe row has all the data for a single reaction
+        for key, value in prediction.items():
+            if key != "smiles":
+                new_entry[key] = value
+
+        # Store entry
+        self.output_data.append(new_entry)
+
     def _display_reaction(
         self,
         index: int,
         reaction: str,
         prediction: dict = None,
-        invalid_smiles: list = [],
-        is_cached: bool = False,
+        from_cache: bool = False,
+        invalid_smiles: list = None,
     ):
         """
         Display a reaction in the CLI or Jupyter Notebook.
@@ -366,25 +457,30 @@ class PredictReactions(RXNPlugin):
         ----------
         index: int
             Index of the reaction in the list. None for single reactions.
-        reaction : str
+        reaction: str
             Reaction smiles string as it was passed by the user.
+            AA.BB.CC
         prediction: dict
-            Prediction data for the reaction, as returned by the API eg:
+            Prediction data for the reaction, as returned by the API.
             {
-                'confidence': 0.9797950224106948,
-                'smiles': 'BrBr.c1ccc2cc3ccccc3cc2c1>>Brc1c2ccccc2cc2ccccc12',
+                'confidence': 0.9999999999999999,
+                'smiles': 'AA.BB.CC>>DD',
                 'photochemical': False,
                 'thermal': False
             }
+        from_cache: bool
+            Wether the reaction was previously cached.
+            This indicates the output type is a cached reaction.
         invalid_smiles: list
             List of invalid smiles in the reaction.
             This indicates the output type is an invalid reaction.
-        is_cached: bool
-            Wether the reaction was previously cached.
-            This indicates the output type is a cached reaction.
         """
 
-        print_str = self.__generate_print_str(index, reaction, prediction, invalid_smiles, is_cached)
+        # Don't display anything in API mode
+        if GLOBAL_SETTINGS["display"] == "api":
+            return
+
+        print_str = self.__generate_print_str(index, reaction, prediction, invalid_smiles, from_cache)
 
         # Display in Jupyter Notebook
         if GLOBAL_SETTINGS["display"] == "notebook":
@@ -415,8 +511,8 @@ class PredictReactions(RXNPlugin):
         index,
         reaction,
         prediction: dict = None,
-        invalid_smiles: list = [],
-        is_cached: bool = False,
+        invalid_smiles: list = None,
+        from_cache: bool = False,
     ):
         """
         Generate a print string for a single reaction.
@@ -433,7 +529,7 @@ class PredictReactions(RXNPlugin):
             print_str = "\n".join([header_print_str, reaction_print_str])
 
         # Cached reaction
-        elif is_cached:
+        elif from_cache:
             header_print_str = self.___print_str__header(index, flag="cached")
             reaction_print_str = self.___print_str__reaction(input_smiles, prediction)
             confidence_print_str = self.___print_str__confidence(prediction.get("confidence"))
@@ -466,9 +562,9 @@ class PredictReactions(RXNPlugin):
 
         # Flag
         if flag == "cached":
-            flag = super().get_flag("cached")
+            flag = self.get_flag("cached")
         elif flag == "failed":
-            flag = super().get_flag("failed")
+            flag = self.get_flag("failed")
 
         # Assemble for Jupyter Notebook
         if GLOBAL_SETTINGS["display"] == "notebook":
@@ -517,7 +613,7 @@ class PredictReactions(RXNPlugin):
         #     input_smiles.append(smiles)
 
         # Assemble
-        confidence_style_tags = super().get_confidence_style(confidence)
+        confidence_style_tags = self.get_confidence_style(confidence)
         reaction_input_print = "<soft>+</soft>  " + "\n<soft>+</soft>  ".join(input_smiles)
         output = [
             reaction_input_print,
@@ -548,6 +644,8 @@ class PredictReactions(RXNPlugin):
             ------------
             => Skipped due to invalid SMILES
         """
+        input_smiles = input_smiles if input_smiles else []
+        invalid_smiles = invalid_smiles if invalid_smiles else []
 
         # Mark valid/invalid smiles
         for i, smiles in enumerate(input_smiles):
@@ -578,7 +676,7 @@ class PredictReactions(RXNPlugin):
         Parameters:
             confidence (float): Confidence score between 0 and 1
         """
-        confidence_print_str_list = super().get_print_str_list__confidence(confidence)
+        confidence_print_str_list = self.get_print_str_list__confidence(confidence)
         return "\n".join(confidence_print_str_list)
 
     def __get_reaction_image(self, reaction_smiles: str):

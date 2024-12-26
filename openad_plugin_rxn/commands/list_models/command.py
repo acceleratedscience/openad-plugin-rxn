@@ -9,11 +9,8 @@ from openad_grammar_def import clause_save_as
 from openad_plugin_rxn.plugin_grammar_def import l_ist, models
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
 
-from openad_plugin_rxn.commands.list_models.list_models import list_models
+from openad_plugin_rxn.commands.list_models.list_models import ListModels
 from openad_plugin_rxn.commands.list_models.description import description
-
-# Login
-from openad_plugin_rxn.plugin_login import login
 
 
 class PluginCommand:
@@ -50,11 +47,6 @@ class PluginCommand:
 
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
-
-        # Login
-        login(cmd_pointer)
-
-        # Execute
         cmd = parser.as_dict()
-        # print(cmd)
-        return list_models(cmd_pointer, cmd)
+        list_models = ListModels(cmd_pointer, cmd)
+        return list_models.run()

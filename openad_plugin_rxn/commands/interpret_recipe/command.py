@@ -8,11 +8,7 @@ from openad.core.help import help_dict_create_v2
 from openad_grammar_def import str_quoted
 from openad_plugin_rxn.plugin_grammar_def import interpret, recipe
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
-from openad_plugin_rxn.commands.interpret_recipe.interpret_recipe import interpret_recipe
-
-
-# Login
-from openad_plugin_rxn.plugin_login import login
+from openad_plugin_rxn.commands.interpret_recipe.interpret_recipe import InterpretRecipe
 
 
 class PluginCommand:
@@ -51,10 +47,6 @@ class PluginCommand:
 
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
-
-        # Login
-        login(cmd_pointer)
-
-        # Execute
         cmd = parser.as_dict()
-        return interpret_recipe(cmd_pointer, cmd)
+        interpret_recipe = InterpretRecipe(cmd_pointer, cmd)
+        return interpret_recipe.run(cmd_pointer, cmd)

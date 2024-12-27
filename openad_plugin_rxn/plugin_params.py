@@ -13,7 +13,7 @@ PLUGIN_KEY = "rxn"
 # - - -
 # A short word that will be required in front of every command.
 # Can be left blank but this is not recommended.
-PLUGIN_NAMESPACE = "rx"
+PLUGIN_NAMESPACE = "rxn"
 
 # Optional: A note that will display at the bottom of your command's help description.
 # - - -

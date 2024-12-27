@@ -31,6 +31,7 @@ class PluginCommand:
         """Create the command definition & documentation"""
 
         # Command definition
+        print(100)
         statements.append(py.Forward(py.Word(PLUGIN_NAMESPACE) + l_ist + models + clause_save_as)(self.parser_id))
 
         # Command help
@@ -48,5 +49,6 @@ class PluginCommand:
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
         cmd = parser.as_dict()
+        print(11, cmd)
         list_models = ListModels(cmd_pointer, cmd)
         return list_models.run()

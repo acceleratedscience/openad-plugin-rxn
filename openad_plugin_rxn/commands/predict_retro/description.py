@@ -41,6 +41,6 @@ RXN was trained on more than 3 million chemical reactions, derived from publicly
     
 <h1>Examples</h1>
 
-- <cmd>rx predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3)</cmd>
-- <cmd>rx predict retrosynthesis  'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=6 ai_model='12class-tokens-2021-05-14' ) </cmd>
+- <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3)</cmd>
+- <cmd>rxn predict retrosynthesis  'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=6 ai_model='12class-tokens-2021-05-14' ) </cmd>
 """

@@ -7,7 +7,7 @@ from openad.core.help import help_dict_create_v2
 # Plugin
 from openad_grammar_def import clause_save_as
 from openad_plugin_rxn.plugin_grammar_def import l_ist, models
-from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
+from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 
 from openad_plugin_rxn.commands.list_models.list_models import ListModels
 from openad_plugin_rxn.commands.list_models.description import description
@@ -31,7 +31,6 @@ class PluginCommand:
         """Create the command definition & documentation"""
 
         # Command definition
-        print(100)
         statements.append(py.Forward(py.Word(PLUGIN_NAMESPACE) + l_ist + models + clause_save_as)(self.parser_id))
 
         # Command help
@@ -42,13 +41,11 @@ class PluginCommand:
                 category=self.category,
                 command=f"{PLUGIN_NAMESPACE} list models [ save as '<filename.csv>' ]",
                 description=description,
-                note=CMD_NOTE,
             )
         )
 
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
         cmd = parser.as_dict()
-        print(11, cmd)
         list_models = ListModels(cmd_pointer, cmd)
         return list_models.run()

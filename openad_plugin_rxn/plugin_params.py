@@ -1,24 +1,32 @@
-# Displayed above the list of library commands in the help.
+import os
+import json
+
+# Load metadata from file
+plugin_metadata = {}
+try:
+    metadata_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugin_metadata.json")
+    with open(metadata_file, "r", encoding="utf-8") as f:
+        plugin_metadata = json.load(f)
+except Exception:  # pylint: disable=broad-except
+    pass
+
+
+# Displayed above the list of plugin commands in the help.
 # - - -
 # Keep this as short as possible, as it is also used to
-# list the commands of your library, eg. `plugin demo ?`
-PLUGIN_NAME = "RXN"
+# list all your plugin's commands.
+PLUGIN_NAME = plugin_metadata.get("name")
 
-# Snake case name of the library, only used internally.
-# - - -
-# Avoid to use the word "plugin" to prevent redundancy.
-PLUGIN_KEY = "rxn"
+
+# Snake case name of the plugin, only used internally.
+PLUGIN_KEY = PLUGIN_NAME.lower().replace(" ", "_")
+
 
 # Namespace for your plugin commands
 # - - -
-# A short word that will be required in front of every command.
-# Can be left blank but this is not recommended.
-PLUGIN_NAMESPACE = "rxn"
-
-# Optional: A note that will display at the bottom of your command's help description.
-# - - -
-# This can either be a string, or a dictionary with localized strings.
-CMD_NOTE = "<reset><reverse> i </reverse></reset> To see all available RXN commands, run <cmd>rxn ?</cmd>"
+# A short string (2-3 chars max) that will be required in front of every command.
+# Doubles as a shortcut to list all your plugin's commands.
+PLUGIN_NAMESPACE = plugin_metadata.get("namespace")
 
 
 # Clauses that are repeated across the descriptions of multiple commands.

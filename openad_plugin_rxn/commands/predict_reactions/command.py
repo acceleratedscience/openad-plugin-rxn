@@ -13,7 +13,7 @@ from openad_plugin_rxn.plugin_grammar_def import (
     clause_no_cache,
 )
 from openad_plugin_rxn.commands.predict_reactions.description import description
-from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
+from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 from openad_plugin_rxn.commands.predict_reactions.predict_reactions import PredictReactions
 
 
@@ -73,7 +73,6 @@ class PluginCommand:
                     f"{PLUGIN_NAMESPACE} predict reactions from dataframe <dataframe_name> {clauses_multiple}",
                 ],
                 description=description,
-                note=CMD_NOTE,
             )
         )
 

@@ -1,0 +1,1 @@
+The RXN plugin helps you predict chemical reactions, retrosynthesis pathways and experimental procedures. You can train AI models with data for specific chemistry domains.

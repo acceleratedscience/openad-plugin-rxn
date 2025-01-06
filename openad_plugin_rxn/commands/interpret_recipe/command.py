@@ -7,7 +7,7 @@ from openad.core.help import help_dict_create_v2
 # Plugin
 from openad_grammar_def import str_quoted
 from openad_plugin_rxn.plugin_grammar_def import interpret, recipe
-from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, CMD_NOTE, PLUGIN_NAMESPACE
+from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 from openad_plugin_rxn.commands.interpret_recipe.interpret_recipe import InterpretRecipe
 
 
@@ -41,7 +41,6 @@ class PluginCommand:
                 category=self.category,
                 command=f"{PLUGIN_NAMESPACE} interpret recipe '<recipe>' | '<recipe.txt>' ",
                 description_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "description.txt"),
-                note=CMD_NOTE,
             )
         )
 
@@ -49,4 +48,4 @@ class PluginCommand:
         """Execute the command"""
         cmd = parser.as_dict()
         interpret_recipe = InterpretRecipe(cmd_pointer, cmd)
-        return interpret_recipe.run(cmd_pointer, cmd)
+        return interpret_recipe.run()

@@ -33,7 +33,6 @@ class ListModels(RXNPlugin):
         """
         Run the command.
         """
-        print(10)
 
         # Load models
         try:
@@ -42,7 +41,6 @@ class ListModels(RXNPlugin):
         except Exception as err:  # pylint: disable=broad-exception-caught
             output_error(["Unable to load models", err], return_val=False)
             return
-        print(20)
 
         # Compile results table
         output_models = []
@@ -55,7 +53,6 @@ class ListModels(RXNPlugin):
             output_models.append(_model)
             output_versions.append(_versions_list)
         res_dict = {"Models": output_models, "Versions": output_versions}
-        print(30)
 
         # Convert to DataFrame
         df = pd.DataFrame.from_dict(res_dict)
@@ -74,11 +71,8 @@ class ListModels(RXNPlugin):
 
         # Save results to file (prints success message)
         if "save_as" in self.cmd:
-            print(1)
             results_file = str(self.cmd["results_file"])
-            print(2)
             save_df_as_csv(self.cmd_pointer, df, results_file)
-            print(3)
 
         # Return data for API
         if GLOBAL_SETTINGS["display"] == "api":

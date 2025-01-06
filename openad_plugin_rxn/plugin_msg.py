@@ -1,6 +1,4 @@
-# fmt: off
 from openad.helpers.output_msgs import msg as _msg
-
 
 
 _messages = {
@@ -8,7 +6,7 @@ _messages = {
         "Something went wrong logging you in to RXN",
         "<reset>Run <cmd>rxn reset</cmd> to reset your credentials</reset>",
         "If this error persists, try removing the RXN plugin, then restart the kernel or application and reinstall the plugin.",
-        ]
+    ]
 }
 
 

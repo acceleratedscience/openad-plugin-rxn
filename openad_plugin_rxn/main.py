@@ -2,11 +2,12 @@ import os
 import importlib.util
 
 # OpenAD
-from openad.helpers.plugins import reorder_commands_by_category_index
+from openad.helpers.plugins import reorder_commands_by_category_index, assemble_plugin_metadata
 
 
 class OpenADPlugin:
     PLUGIN_OBJECTS = {}
+    metadata = {}
     statements = []
     help = []
 
@@ -35,3 +36,6 @@ class OpenADPlugin:
         for plugin_class in plugin_commands:
             self.PLUGIN_OBJECTS[plugin_class.parser_id] = plugin_class
             self.PLUGIN_OBJECTS[plugin_class.parser_id].add_grammar(self.statements, self.help)
+
+        # Assenble metadata
+        self.metadata = assemble_plugin_metadata(os.path.dirname(os.path.abspath(__file__)), self.help)

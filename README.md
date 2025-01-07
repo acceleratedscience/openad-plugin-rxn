@@ -34,6 +34,8 @@ Installation for development:
     cd openad-plugin-rxn
     pip install -e .
 
+<br>
+
 ## Login
 
 In order to use this plugin, you need to register for an RXN account.

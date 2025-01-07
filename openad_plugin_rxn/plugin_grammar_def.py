@@ -2,8 +2,12 @@ import pyparsing as py
 
 l_ist = py.CaselessKeyword("list")
 models = py.CaselessKeyword("models")
+
 interpret = py.CaselessKeyword("interpret")
 recipe = py.CaselessKeyword("recipe")
+
+reset = py.CaselessKeyword("reset")
+login = py.CaselessKeyword("login")
 
 predict = py.CaselessKeyword("predict")
 retrosynthesis = py.MatchFirst([py.CaselessKeyword("retrosynthesis"), py.CaselessKeyword("retro")])

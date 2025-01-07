@@ -5,12 +5,9 @@ import pyparsing as py
 from openad.core.help import help_dict_create_v2
 
 # Plugin
-from openad_grammar_def import clause_save_as
-from openad_plugin_rxn.plugin_grammar_def import l_ist, models
+from openad_plugin_rxn.plugin_grammar_def import reset, login
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
-
-from openad_plugin_rxn.commands.list_models.list_models import ListModels
-from openad_plugin_rxn.commands.list_models.description import description
+from openad_plugin_rxn.plugin_login import RXNLoginManager
 
 
 class PluginCommand:
@@ -23,7 +20,7 @@ class PluginCommand:
 
     def __init__(self):
         self.category = "General"
-        self.index = 1
+        self.index = 0
         self.name = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         self.parser_id = f"plugin_{PLUGIN_KEY}_{self.name}"
 
@@ -31,7 +28,7 @@ class PluginCommand:
         """Create the command definition & documentation"""
 
         # Command definition
-        statements.append(py.Forward(py.Word(PLUGIN_NAMESPACE) + l_ist + models + clause_save_as)(self.parser_id))
+        statements.append(py.Forward(py.Word(PLUGIN_NAMESPACE) + reset + login)(self.parser_id))
 
         # Command help
         grammar_help.append(
@@ -39,13 +36,12 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=f"{PLUGIN_NAMESPACE} list models [ save as '<filename.csv>' ]",
-                description=description,
+                command=f"{PLUGIN_NAMESPACE} reset login",
+                description_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "description.txt"),
             )
         )
 
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
-        cmd = parser.as_dict()
-        list_models = ListModels(cmd_pointer, cmd)
-        return list_models.run()
+        login_manager = RXNLoginManager(cmd_pointer)
+        login_manager.reset()

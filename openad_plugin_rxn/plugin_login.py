@@ -1,5 +1,9 @@
 import os
-from datetime import datetime, timezone
+import json
+import pandas as pd
+import shutil
+from time import sleep
+from datetime import datetime
 
 # OpenAD
 from openad_plugin_rxn.plugin_msg import msg
@@ -16,113 +20,117 @@ class RXNLoginManager:
     Login manager for RXN
     """
 
-    master = None
+    cmd_pointer = None
+    cred_path = None
     RXN_VARS_TEMPLATE = {"current_project": None, "current_project_id": None}
     API_CONFIG_BLANK = {"host": "None", "auth": {"username": "None", "api_key": "None"}, "verify_ssl": "false"}
     DEFAULT_URL = "https://rxn.app.accelerate.science"
+    api = None
 
-    def __init__(self, master, cmd_pointer):
+    def __init__(self, cmd_pointer):
         """
         Parameters
         ----------
-        cmd_pointer:
-            The command pointer object
+        cmd_pointer: object
+            The command pointer object.
         """
-        self.master = master
         self.cmd_pointer = cmd_pointer
+        self.cred_path = os.path.expanduser(f"{self.cmd_pointer.home_dir}/rxn_api.cred")
 
     def login(self):
         """Login to RXN"""
 
-        # Check for existing credentials
-        cred_file = os.path.expanduser(f"{self.cmd_pointer.home_dir}/rxn_api.cred")
+        # Check for credentials file
+        login_reset = bool(not os.path.isfile(self.cred_path))
 
-        if not os.path.isfile(cred_file):
-            login_reset = True
-        else:
-            login_reset = False
-
-        first_login = False  # Used primarily for Notebook mode to signal logged on only once
-
-        # First time login in this session
-        if PLUGIN_KEY not in self.cmd_pointer.login_settings["toolkits"]:
-            first_login = True
-            self.cmd_pointer.login_settings["toolkits"].append(PLUGIN_KEY)
-            self.cmd_pointer.login_settings["toolkits_details"].append({"type": "config_file", "session": "handle"})
-            self.cmd_pointer.login_settings["toolkits_api"].append(None)
-            self.cmd_pointer.login_settings["client"].append(None)
-            self.cmd_pointer.login_settings["expiry"].append(None)
-            x = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
-            self.cmd_pointer.login_settings["session_vars"].append(
-                self.RXN_VARS_TEMPLATE  # pylint: disable=protected-access
-            )
-
-        # Consecutive logins - read credentials from cred_file
-        elif login_reset is False:
-            now = datetime.now(timezone.utc)
-            x = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
-            client = self.cmd_pointer.login_settings["client"][
-                self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
-            ]
-            try:
-                if login_reset is True or first_login is True:
-                    email = client.current_user()["response"]["payload"]["email"]
-                    workspace = self.cmd_pointer.settings["workspace"]
-                    output_text(
-                        f"<success>logging into RXN as: </success> {email}\n <success>Workspace: </success> {workspace}",
-                        return_val=False,
-                    )
-                name, project_id = self.master.get_current_project(self.cmd_pointer)  # pylint: disable=unused-variable
-                # raise Exception("This is a test error")
-            except Exception as err:  # pylint: disable=broad-exception-caught
-                output_error(msg("err_login") + ["---", f"Error: {err}"], return_val=False)
-                return False, None
-
+        # Already logged in
+        if not login_reset and self._api_initialized():
+            # Link API to the project associated with your current workspace
+            name, project_id = self.get_current_project()  # pylint: disable=unused-variable
             if name != self.cmd_pointer.settings["workspace"]:
-                try:
-                    self.master.sync_up_workspace_name(self.cmd_pointer)
-                except Exception:  # pylint: disable=broad-exception-caught
-                    return False, None
-            now = datetime.timestamp(now)
-            return True, None  # No expiry on RXN Handles
+                self._sync_workspace_rxn_project()
+            return
 
-        # If no authentication file, ask for authentication details and create one
-        try:
-            config_file = self._get_creds(cred_file)
-        except Exception:  # pylint: disable=broad-exception-caught
-            return False, None
-        x = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
+        # ------------------------------------------------
 
-        # Fix for defaults when automating rxn cred application
-        if config_file["host"].strip() == "None":
-            config_file["host"] = ""
+        # Prepare new login entry
+        self.cmd_pointer.login_settings["toolkits"].append(PLUGIN_KEY)
+        self.cmd_pointer.login_settings["toolkits_details"].append({"type": "config_file", "session": "handle"})
+        self.cmd_pointer.login_settings["toolkits_api"].append(None)
+        self.cmd_pointer.login_settings["client"].append(None)
+        self.cmd_pointer.login_settings["expiry"].append(None)
+        self.cmd_pointer.login_settings["session_vars"].append(self.RXN_VARS_TEMPLATE)
 
         try:
-            client = RXN4ChemistryWrapper(api_key=config_file["auth"]["api_key"], base_url=config_file["host"])
-            email = client.current_user()["response"]["payload"]["email"]
-            if login_reset is True or first_login is True:
-                workspace = self.cmd_pointer.settings["workspace"]
+            # Initialize the API
+            success = self._init_api()
+            if not success:
+                return
+
+            # Get user details
+            response = self.api.current_user().get("response", {})
+
+            # Fail - invalid API key
+            if response.get("status") == 401:
+                raise ConnectionRefusedError(response.get("message"))
+
+            # Success message for first-time login
+            if login_reset:
+                username = response.get("payload", {}).get("email") if response else None
                 output_success(
-                    f"Logged in to <yellow>{PLUGIN_NAME}</yellow> as <reset>{email}</reset>",
+                    f"Logged in to <yellow>{PLUGIN_NAME}</yellow> as <reset>{username}</reset>",
                     return_val=False,
                 )
-            self.cmd_pointer.login_settings["toolkits_api"][x] = config_file["auth"]["api_key"]
-            self.cmd_pointer.login_settings["client"][x] = client
+
+            # Link API to the project associated with your current workspace
+            self._sync_workspace_rxn_project()
+
+            return
+
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            output_error(["Failed to initialize the RXN API", err], return_val=False)
+            return
+
+    def _init_api(self):
+        if not self.api:
+
+            # Get existing login credentials or prompt for new ones.
             try:
-                self.master.sync_up_workspace_name(self.cmd_pointer)
+                config_file = self._get_creds()
             except Exception:  # pylint: disable=broad-exception-caught
-                return False, None
+                return False
 
-            return True, None
-        except Exception:  # pylint: disable=broad-exception-caught
-            return False, None
+            # Fix for defaults when automating rxn cred application
+            if config_file["host"].strip() == "None":
+                config_file["host"] = ""
 
-    def _get_creds(self, cred_file):
+            self.api = RXN4ChemistryWrapper(api_key=config_file["auth"]["api_key"], base_url=config_file["host"])
+
+            # Store API in cmd_pointer
+            if self.api:
+                toolkit_index = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
+                self.cmd_pointer.login_settings["toolkits_api"][toolkit_index] = config_file["auth"]["api_key"]
+                self.cmd_pointer.login_settings["client"][toolkit_index] = self.api
+                return True
+
+            # You're probably offline
+            else:
+                output_error(msg("err_api_offline"), return_val=False)
+                return False
+
+    def _api_initialized(self):
+        if not PLUGIN_KEY in self.cmd_pointer.login_settings["toolkits"]:
+            return False
+
+        toolkit_index = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
+        api = self.cmd_pointer.login_settings["toolkits_api"][toolkit_index]
+        return bool(api)
+
+    def _get_creds(self):
         """
         Return existing login credentials or prompt for new ones.
         """
-
-        api_config = load_credentials(cred_file)
+        api_config = load_credentials(self.cred_path)
         if api_config is None:
             output_warning(
                 ["Please provide your RXN credentials", f"Leave this blank to use the default: {self.DEFAULT_URL}"],
@@ -132,13 +140,195 @@ class RXNLoginManager:
             api_config = get_credentials(
                 cmd_pointer=self.cmd_pointer, credentials=api_config, creds_to_set=["host", "auth:api_key"]
             )
-            write_credentials(api_config, cred_file)
+            write_credentials(api_config, self.cred_path)
         return api_config
 
     def reset(self):
         """
         Remove login credentials to trigger authentication reset.
         """
-        cred_file = os.path.expanduser(f"{self.cmd_pointer.home_dir}/rxn_api.cred")
-        if os.path.expanduser(cred_file):
-            os.remove(cred_file)
+        if os.path.isfile(self.cred_path):
+            os.remove(self.cred_path)
+            output_success(["Login credentials deleted", "Run any RXN command to re-authenticate"], return_val=False)
+        else:
+            output_warning("No login credentials found", return_val=False)
+
+    # RXN project management
+    # ----------------------
+    # We create and store a separate project per workspace
+
+    def _sync_workspace_rxn_project(self, reset=False):
+        """
+        Create or reuse an RXN project with the same name as your workspace, required to use the API.
+        """
+
+        # Check if you already have a project set up for this workspace,
+        # and initialize the API wih it
+        all_projects = self.__get_all_projects()
+        workspace_name = self.cmd_pointer.settings["workspace"].upper()
+        if workspace_name in all_projects:
+            self.__set_current_project(workspace_name)
+            return
+
+        # Check if you already have a project set up.
+        name, project_id = self.get_current_project()
+        if name == self.cmd_pointer.settings["workspace"] and not reset:
+            return
+
+        # Create new project
+        success = False
+        retries = 0
+        while retries < 5 and success is False:
+            if retries > 1:
+                sleep(3)
+            retries += 1
+
+            try:
+                result = self.api.create_project(self.cmd_pointer.settings["workspace"])
+
+                if len(result) == 0:
+                    continue
+                else:
+                    self.__append_project(
+                        self.cmd_pointer.settings["workspace"].upper(),
+                        result["response"]["payload"]["id"],
+                    )
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                output_error(["Unable to create RXN project", "API may be offline", err], return_val=False)
+                return
+
+            try:
+                sleep(3)
+                success = self.__set_current_project(self.cmd_pointer.settings["workspace"].upper())
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                output_error(["Unable to set RXN project", "API may be offline", err], return_val=False)
+                return
+
+        # Success
+        output_text("<soft>A new RXN project has been setup for this workspace</soft>", return_val=False)
+        return
+
+    def __get_all_projects(self):
+        """
+        Get list of all your RXN projects.
+        """
+        try:
+            with open(self.cmd_pointer.home_dir + "/RXN_Projects/rxn_projects.pkl", "r", encoding="utf-8") as handle:
+                projects = json.loads(handle.read())
+                handle.close()
+        except Exception:  # pylint: disable=broad-exception-caught
+            projects = {}
+
+        return projects
+
+    def __append_project(self, project_name, project_id):
+        """
+        Append newly created project to the list of projects.
+        """
+        if not os.path.isdir(self.cmd_pointer.home_dir + "/RXN_Projects/"):
+            os.mkdir(self.cmd_pointer.home_dir + "/RXN_Projects/")
+
+        try:
+            with open(self.cmd_pointer.home_dir + "/RXN_Projects/rxn_projects.pkl", "r", encoding="utf-8") as handle:
+                projects = json.loads(handle.read())
+                handle.close()
+        except Exception:  # pylint: disable=broad-exception-caught
+            projects = {}
+        projects[project_name] = project_id
+
+        try:
+            with open(self.cmd_pointer.home_dir + "/RXN_Projects/rxn_projects.pkl", "w", encoding="utf-8") as handle:
+                json.dump(dict(projects), handle)
+                handle.close()
+        except Exception:  # pylint: disable=broad-exception-caught
+            return False
+
+        shutil.copyfile(
+            self.cmd_pointer.home_dir + "/RXN_Projects/rxn_projects.pkl",
+            self.cmd_pointer.home_dir
+            + "/RXN_Projects/rxn_projects_"
+            + datetime.now().strftime("%Y-%m-%d_%H%M%S")
+            + ".bup",
+        )
+        return True
+
+    def __set_current_project(self, project_name: str) -> bool:
+        """
+        Set the current RXN project, required to use API.
+        """
+        project_id = self.___get_project_id(project_name)
+        if project_id is not False:
+            rxn_position = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
+            self.cmd_pointer.login_settings["session_vars"][rxn_position]["current_project"] = project_name
+            self.cmd_pointer.login_settings["session_vars"][rxn_position]["current_project_id"] = project_id
+
+            try:
+                self.api.set_project(project_id)
+                return True
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                output_error(["Failed to set API's project_id", err], return_val=False)
+                return False
+
+    def ___get_project_id(self, project_name):
+        project_id = False
+        try:
+            with open(self.cmd_pointer.home_dir + "/RXN_Projects/rxn_projects.pkl", "r", encoding="utf-8") as handle:
+                projects = json.loads(handle.read())
+                handle.close()
+                project_id = projects[project_name]
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+
+        return project_id
+
+    def get_current_project(self):
+        """
+        Get your current RXN project.
+
+        Returns
+        -------
+        name, id
+        """
+        rxn_position = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
+        try:
+            return (
+                self.cmd_pointer.login_settings["session_vars"][rxn_position]["current_project"],
+                self.cmd_pointer.login_settings["session_vars"][rxn_position]["current_project_id"],
+            )
+        except Exception:  # pylint: disable=broad-except
+            return None, None
+
+    # Unused methods
+    # ----------------
+
+    def validate_project(self, project_name):
+        """
+        Validate if a project exists.
+        """
+        projects = self.__get_all_projects()
+        if project_name in projects["name"].values:
+            result = projects[projects.name == project_name]
+            return {"name": result["name"], "id": result["id"]}
+        else:
+            return False
+
+    def get_all_projects_v1(self) -> pd.DataFrame:
+        """
+        Get list of all your RXN projects (alt)
+        """
+        result = False
+        retries = 0
+        while result is False:
+            try:
+                result = self.api.list_all_projects(size=100)["response"]["payload"]["content"]
+            except Exception as err:  # pylint: disable=broad-except
+                if retries < 10:
+                    sleep(2)
+                    retries += 1
+                else:
+                    output_error(["Unable to retrieve list of projects", err], return_val=False)
+                    return
+
+        df = pd.DataFrame(result)
+        df = df[["name", "description", "id", "attempts"]]
+        return df

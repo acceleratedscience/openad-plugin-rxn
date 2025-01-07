@@ -13,8 +13,9 @@ from openad.helpers.general import get_print_width
 from openad.helpers.jupyter import jup_display_input_molecule
 
 # Plugin
-from openad_plugin_rxn.plugin_master_class import RXNPlugin
+from openad_plugin_rxn.plugin_msg import msg
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY
+from openad_plugin_rxn.plugin_master_class import RXNPlugin
 
 
 class PredictRetro(RXNPlugin):
@@ -73,14 +74,21 @@ class PredictRetro(RXNPlugin):
         """
         Run the command.
         """
-        self._setup()
-        self._parse_input()
+
+        # In case you're offline
+        if not self.api:
+            output_error(msg("err_api_offline"), return_val=False)
+            return
+
+        # Setup
+        success = self._parse_input()
+        if not success:
+            return
 
         # Check if result is in cache
         input_smiles_key = canonicalize(self.input_smiles)
         if not self.no_cache:
             self.result_from_cache = self.retrieve_result_cache(
-                self.cmd_pointer,
                 name=f"predict-retro-{self.using_params.get('ai_model')}",
                 key=input_smiles_key,
             )
@@ -106,7 +114,6 @@ class PredictRetro(RXNPlugin):
 
             # Save result in cache
             self.store_result_cache(
-                self.cmd_pointer,
                 name=f"predict-retro-{self.using_params.get('ai_model')}",
                 key=input_smiles_key,
                 payload=retrosynthetic_paths,
@@ -142,10 +149,6 @@ class PredictRetro(RXNPlugin):
         else:
             self._display_results(reactions_dict_list)
 
-    def _setup(self):
-        self.sync_up_workspace_name(self.cmd_pointer)
-        self.get_current_project(self.cmd_pointer)
-
     def _parse_input(self):
         """
         Parse the pyparsing dictionary input.
@@ -153,20 +156,25 @@ class PredictRetro(RXNPlugin):
         # Parse input SMILES
         self.input_smiles = self.cmd.get("smiles", [None])[0]
         if not self.input_smiles or not valid_smiles(self.input_smiles):
-            return output_error(["Provided SMILES is invalid", f"Input SMILES: '{self.input_smiles}'"])
+            output_error(["Provided SMILES is invalid", f"Input SMILES: '{self.input_smiles}'"], return_val=False)
+            return False
         # self.input_smiles = canonicalize(self.input_smiles) # Makes it harder to tie input and output together
 
         # Make sure input SMILES is not a reaction
         if len(self.input_smiles.split(".")) > 1:
-            return output_error(
-                "Provided SMILES describes a reaction. Run <cmd>rxn predict reaction ?</cmd> to see how to predict reactions instead."
+            output_error(
+                "Provided SMILES describes a reaction. Run <cmd>rxn predict reaction ?</cmd> to see how to predict reactions instead.",
+                return_val=False,
             )
+            return False
 
         # Parse parameters from the USING clause
         self.using_params = self.parse_using_params(self.cmd, self.using_params_defaults)
 
         # Parse no_cache clause
         self.no_cache = bool(self.cmd.get("no_cache"))
+
+        return True
 
     def _api_get_task_id(self):
         """

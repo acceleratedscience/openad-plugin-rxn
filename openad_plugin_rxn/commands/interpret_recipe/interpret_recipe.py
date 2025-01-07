@@ -6,6 +6,7 @@ from openad.helpers.spinner import spinner
 from openad.helpers.output import output_text, output_error
 
 # Plugin
+from openad_plugin_rxn.plugin_msg import msg
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY
 from openad_plugin_rxn.plugin_master_class import RXNPlugin
 
@@ -29,8 +30,10 @@ class InterpretRecipe(RXNPlugin):
         Interpret a free text paragraph into a recipe list of instructions.
         """
 
-        # Define the RXN API
-        api = self.cmd_pointer.login_settings["client"][self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)]
+        # In case you're offline
+        if not self.api:
+            output_error(msg("err_api_offline"), return_val=False)
+            return
 
         recipe = self.cmd["recipe"]
         recipe_file_path = self.cmd_pointer.workspace_path() + "/" + recipe.strip()
@@ -52,7 +55,7 @@ class InterpretRecipe(RXNPlugin):
         try:
             # raise Exception('This is a test error')
             recipe_steps = []
-            actios_from_procedure_results = api.paragraph_to_actions(recipe)
+            actios_from_procedure_results = self.api.paragraph_to_actions(recipe)
             if not actios_from_procedure_results["actions"]:
                 raise ValueError("No actions found in the provided paragraph")
             recipe_steps.append("<h1>Recipe steps:</h1>")

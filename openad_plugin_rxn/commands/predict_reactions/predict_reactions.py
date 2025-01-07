@@ -14,6 +14,7 @@ from openad.helpers.jupyter import save_df_as_csv
 
 
 # Plugin
+from openad_plugin_rxn.plugin_msg import msg
 from openad_plugin_rxn.plugin_master_class import RXNPlugin
 
 
@@ -75,9 +76,6 @@ class PredictReactions(RXNPlugin):
         self.cmd = cmd
 
     def _setup(self):
-        self.sync_up_workspace_name(self.cmd_pointer)
-        self.get_current_project(self.cmd_pointer)
-
         # Parse command
         self.reactions_list = self._parse_reactions_list()
         self.using_params = self.parse_using_params(self.cmd, self.using_params_defaults)
@@ -98,6 +96,13 @@ class PredictReactions(RXNPlugin):
         """
         Run the command.
         """
+
+        # In case you're offline
+        if not self.api:
+            output_error(msg("err_api_offline"), return_val=False)
+            return
+
+        # Setup
         if not self._setup():
             return
 
@@ -172,18 +177,16 @@ class PredictReactions(RXNPlugin):
             # - - -
             # 1) Input smiles
             input_smiles = reaction.split(".")
-            input_smiles_key = self.homogenize(input_smiles)
+            input_smiles_key = self.homogenize_smiles(input_smiles)
             self.store_result_cache(
-                self.cmd_pointer,
                 name=f"predict-reaction-{self.using_params.get('ai_model')}",
                 key=input_smiles_key,
                 payload=prediction,
             )
             # 2) Canonicalized smiles from RXN
             prediction_smiles = prediction.get("smiles", "").split(">>")[0].split(".")
-            prediction_smiles_key = self.homogenize(prediction_smiles)
+            prediction_smiles_key = self.homogenize_smiles(prediction_smiles)
             self.store_result_cache(
-                self.cmd_pointer,
                 name=f"predict-reaction-{self.using_params.get('ai_model')}",
                 key=prediction_smiles_key,
                 payload=prediction,
@@ -230,7 +233,7 @@ class PredictReactions(RXNPlugin):
 
                 # CSV file
                 if ext == "csv":
-                    reactions_df = self.get_dataframe_from_file(self.cmd_pointer, from_file)
+                    reactions_df = self.get_dataframe_from_file(from_file)
                     if reactions_df is None:
                         return
                     else:
@@ -241,7 +244,7 @@ class PredictReactions(RXNPlugin):
 
                 # TXT file
                 elif ext == "txt":
-                    from_list = self.get_list_from_txt_file(self.cmd_pointer, from_file)
+                    from_list = self.get_list_from_txt_file(from_file)
                     if not from_list:
                         return output_error("No reactions found in TXT file, file seems to be empty")
                     self.validate_reactions_list(from_list)
@@ -293,9 +296,8 @@ class PredictReactions(RXNPlugin):
 
             # Check for cached results
             elif not self.no_cache:
-                input_smiles_key = self.homogenize(input_smiles)
+                input_smiles_key = self.homogenize_smiles(input_smiles)
                 result_from_cache = self.retrieve_result_cache(
-                    self.cmd_pointer,
                     name=f"predict-reaction-{self.using_params.get('ai_model')}",
                     key=input_smiles_key,
                 )

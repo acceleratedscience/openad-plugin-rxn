@@ -6,6 +6,7 @@ from openad.helpers.jupyter import save_df_as_csv
 from openad.helpers.output import output_table, output_error
 
 # Plugin
+from openad_plugin_rxn.plugin_msg import msg
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY
 
 # Plugin
@@ -60,11 +61,12 @@ class ListModels(RXNPlugin):
 
         # Display results in CLI & Notebook
         if GLOBAL_SETTINGS["display"] != "api":
+            br = "<br>" if GLOBAL_SETTINGS["display"] == "notebook" else "\n"
 
             # Parse list of versions into a string
             df_print = df.copy()
             df_print["Versions"] = df_print["Versions"].apply(
-                lambda x: "\n".join(x)  # pylint: disable=unnecessary-lambda
+                lambda x: f"{br}".join(x)  # pylint: disable=unnecessary-lambda
             )
 
             output_table(df_print, return_val=False)

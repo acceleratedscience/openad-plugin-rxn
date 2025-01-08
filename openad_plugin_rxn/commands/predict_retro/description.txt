@@ -1,6 +1,6 @@
 Get a molecule's retrosynthesis route prediction.
 
-<h1>The USING clause</h1>
+<h1>Parameters</h1>
 
 <cmd>availability_pricing_threshold=<int></cmd>
     Maximum price in USD per g/ml of compounds. The default is no threshold (0).

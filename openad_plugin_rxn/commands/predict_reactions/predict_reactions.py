@@ -55,8 +55,7 @@ class PredictReactions(RXNPlugin):
 
     # Default parameters
     using_params_defaults = {
-        # "ai_model": "2018-08-31",  # Latest model, but RXN default is still set to '2020-08-10'
-        "ai_model": "2018-08-10",
+        "ai_model": "2020-08-10",
         "topn": None,
     }
 
@@ -179,8 +178,10 @@ class PredictReactions(RXNPlugin):
             # 1) Input smiles
             input_smiles = reaction.split(".")
             input_smiles_key = self.homogenize_smiles(input_smiles)
+            topn = self.using_params.get("topn")
+            topn_str = "" if topn in [None, 0, "0"] else f"-topn-{topn}"
             self.store_result_cache(
-                name=f"predict-reaction-{self.using_params.get('ai_model')}",
+                name=f"predict-reaction-{self.using_params.get('ai_model')}{topn_str}",
                 key=input_smiles_key,
                 payload=prediction,
             )
@@ -188,7 +189,7 @@ class PredictReactions(RXNPlugin):
             prediction_smiles = prediction.get("smiles", "").split(">>")[0].split(".")
             prediction_smiles_key = self.homogenize_smiles(prediction_smiles)
             self.store_result_cache(
-                name=f"predict-reaction-{self.using_params.get('ai_model')}",
+                name=f"predict-reaction-{self.using_params.get('ai_model')}{topn_str}",
                 key=prediction_smiles_key,
                 payload=prediction,
             )
@@ -311,8 +312,10 @@ class PredictReactions(RXNPlugin):
             # Check for cached results
             elif not self.no_cache:
                 input_smiles_key = self.homogenize_smiles(input_smiles)
+                topn = self.using_params.get("topn")
+                topn_str = "" if topn in [None, 0, "0"] else f"-topn-{topn}"
                 result_from_cache = self.retrieve_result_cache(
-                    name=f"predict-reaction-{self.using_params.get('ai_model')}",
+                    name=f"predict-reaction-{self.using_params.get('ai_model')}{topn_str}",
                     key=input_smiles_key,
                 )
 
@@ -354,17 +357,15 @@ class PredictReactions(RXNPlugin):
                 # task_id = launch_job_response.get("prediction_id")
                 # response = self.api.get_predict_reaction_results(task_id)
 
-                if topn:
-                    # print("B") # %%
-                    # print("- reactions_list_sanitized", reactions_list_sanitized)
-                    # print("- topn", topn)
-                    # print("- ai_model", ai_model)
+                if topn not in [None, 0, "0"]:
                     # Batch topn function - https://github.com/rxn4chemistry/rxn4chemistry/blob/9bfd050153ac754298353c1de52e45bb6bb9cf97/rxn4chemistry/core.py#L507
                     # This endpoint consumes reactions as lists instead of strings.
                     reactions_list_sanitized = [r.split(".") for r in self.reactions_list_sanitized]
+                    # print("- reactions_list_sanitized", reactions_list_sanitized)  # %%
+                    # print("- topn", topn)
+                    # print("- ai_model", ai_model)
                     launch_job_response = self.api.predict_reaction_batch_topn(reactions_list_sanitized, topn, ai_model)
                 else:
-                    # print("C", self.reactions_list_sanitized, ai_model)
                     # Regular batch function - https://github.com/rxn4chemistry/rxn4chemistry/blob/9bfd050153ac754298353c1de52e45bb6bb9cf97/rxn4chemistry/core.py#L436
                     launch_job_response = self.api.predict_reaction_batch(self.reactions_list_sanitized, ai_model)
 
@@ -409,27 +410,38 @@ class PredictReactions(RXNPlugin):
 
                 # raise Exception("This is a test error")
                 topn = self.using_params.get("topn")
-                if topn:
+                if topn not in [None, 0, "0"]:
                     response = self.api.get_predict_reaction_batch_topn_results(task_id)
                 else:
                     response = self.api.get_predict_reaction_batch_results(task_id)
 
+                # Job still running - keep on waiting
                 if response.get("task_status") == "RUNNING":
-                    sleep(2)
-                    continue
+                    raise Warning
                 if not response:
-                    raise ValueError("Empty server response")
+                    raise Warning("Empty server response")
                 if not response.get("predictions"):
-                    raise ValueError("No predictions returned")
+                    if response.get("response", {}).get("payload", {}).get("task", {}).get("status") == "ERROR":
+                        raise ValueError(response)
+                    else:
+                        raise Warning("No predictions returned")
+
                 try_again = False
 
-            except ValueError as err:  # pylint: disable=broad-exception-caught
+            # Still running, keep trying
+            except Warning as err:  # pylint: disable=broad-exception-caught
                 sleep(2)
                 retries = retries + 1
                 if retries > max_retries:
                     spinner.stop()
                     output_error([f"Server unresponsive after {max_retries} retries", err], return_val=False)
                     return False
+
+            # Error, abort
+            except ValueError as err:
+                spinner.stop()
+                output_error(["RXN API error", err], return_val=False)
+                return False
 
         spinner.succeed("Done")
         return response.get("predictions")
@@ -470,7 +482,7 @@ class PredictReactions(RXNPlugin):
 
         # Create entry
         new_entry = {"input": input_smiles}
-        for i, inp in enumerate(input_smiles, start=1):
+        for i, inp in enumerate(input_smiles):
             new_entry[f"input_{i}"] = inp
 
         if error:
@@ -528,12 +540,9 @@ class PredictReactions(RXNPlugin):
         if GLOBAL_SETTINGS["display"] == "api":
             return
 
-        # Results from topn queries are structured differently
-        # and have their own display function
-        # - - -
-        # Note: will be false for invalid reactions, because prediction will be None
-        is_topn_result = bool(prediction and prediction.get("results") and prediction.get("raw_results"))
-
+        # Prediction results from topn queries are structured
+        # differently and have their own display function
+        is_topn_result = self.__is_topn_result(prediction)
         if is_topn_result:
             print_str = self.__generate_print_str_topn(index, reaction, prediction, from_cache)
         else:
@@ -561,7 +570,15 @@ class PredictReactions(RXNPlugin):
 
         # Display in CLI
         elif not GLOBAL_SETTINGS["display"] == "api":
-            output_text(print_str, pad=2, return_val=False)
+            output_text(print_str, pad=2, nowrap=True, return_val=False)
+
+    def __is_topn_result(self, prediction: dict) -> bool:
+        """
+        Determine if a prediction is a topn result or a regular batch result.
+
+        Will always be false for invalid reactions, because prediction will be None.
+        """
+        return bool(prediction and prediction.get("results") and prediction.get("raw_results"))
 
     def __generate_print_str(
         self,
@@ -782,7 +799,7 @@ class PredictReactions(RXNPlugin):
         # Assemble output
         reaction_output_print = []
         results = prediction.get("results", [])
-        for result in results:
+        for i, result in enumerate(results, start=1):
             output_smiles = result.get("smiles", [""])[0]
             confidence = result.get("confidence", 0)
             confidence_print_str = self.___print_str__confidence(confidence)
@@ -790,7 +807,7 @@ class PredictReactions(RXNPlugin):
             confidence_style_tags = self.get_confidence_style(confidence)
             reaction_output_print.append("   <soft>-------------------------</soft>")
             reaction_output_print.append(
-                f"<soft>=></soft> {confidence_style_tags[0]}{output_smiles}{confidence_style_tags[1]}"
+                f"<soft>{i}.</soft> {confidence_style_tags[0]}{output_smiles}{confidence_style_tags[1]}"
             )
             reaction_output_print.append(confidence_print_str)
 

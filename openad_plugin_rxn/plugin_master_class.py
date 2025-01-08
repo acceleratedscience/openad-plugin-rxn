@@ -5,7 +5,7 @@ import pandas as pd
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.helpers.jupyter import parse_using_clause
-from openad.helpers.output import output_error
+from openad.helpers.output import output_error, output_text
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg
@@ -365,9 +365,13 @@ class RXNPlugin:
         Save a result to the cache.
 
         /<workspace>/._openad/rxn_cache/rxn-<func_name>-<model_name>--<input_smiles>.result
+        /<workspace>/._openad/rxn_cache/rxn-<func_name>-<model_name>-topn-<int>--<input_smiles>.result
         """
         try:
             filename = f"rxn-{name}--{key}.result"
+            if len(filename) > 256:
+                output_text("<soft>Result not cached, too complex</soft>")
+                return
             cache_dir = self._get_cache_dir()
             with open(os.path.join(cache_dir, filename), "wb") as handle:
                 pickle.dump({"payload": payload}, handle)

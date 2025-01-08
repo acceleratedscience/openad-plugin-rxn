@@ -27,6 +27,8 @@ rxn predict reaction 'BrBr.ABD.c1ccc2cc3ccccc3cc2c1CCO'
 rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']
 rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']
 rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1'] no cache
+rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1'] using (ai_model='2018-08-31')
+rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1'] using (topn=3)
 
 rxn predict reactions from file 'my_reactions.csv'
 rxn predict reactions from file 'my_reactions.csv'

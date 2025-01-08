@@ -1,10 +1,19 @@
 Predict the reactions of two or more molecules defined by their SMILES.
 
-topn: number of predictions to make per reaction.
+<h1>Parameters</h1>
 
-Examples:
+<cmd>ai_model='<model_name>'</cmd>
+    Which model to use for the prodiction.
+    To see a list of available models, run <cmd>rxn list models</cmd>
+
+<cmd>topn=<int></cmd>
+    Number of predictions to make per reaction.
+
+<h1>Examples</h1>
+
 - <cmd>rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'</cmd>
 - <cmd>rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' no cache</cmd>
-- <cmd>rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']</cmd>
-- <cmd>rxn predict reactions from file 'my_reactions.csv'</cmd>
+- <cmd>rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO', 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']</cmd>
+- <cmd>rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO', 'BrBr.c1ccc2cc3ccccc3cc2c1'] using (ai_model='2018-08-31' topn=3)</cmd>
+- <cmd>rxn predict reactions from file 'my_reactions.csv' using (topn=5)</cmd>
 - <cmd>rxn predict reactions from dataframe my_reactions_df</cmd>

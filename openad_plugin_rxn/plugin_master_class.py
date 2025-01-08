@@ -255,11 +255,12 @@ class RXNPlugin:
         else:
             # Confidence meter
             confidence_meter = ["━" for _ in range(24)]
-            confidence_meter.insert(0, confidence_style_tags[0])
-            if confidence == 100:
-                confidence_meter.append("━" + confidence_style_tags[1])
-            else:
-                confidence_meter.insert(round(confidence / 4), "╸" + confidence_style_tags[1])
+            if round(confidence / 4) > 0:
+                confidence_meter.insert(0, confidence_style_tags[0])
+                if confidence == 100:
+                    confidence_meter.append("━" + confidence_style_tags[1])
+                else:
+                    confidence_meter.insert(round(confidence / 4), "╸" + confidence_style_tags[1])
             confidence_meter = "<soft>" + "".join(confidence_meter) + "</soft>"
 
             # Confidence score in text

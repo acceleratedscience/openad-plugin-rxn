@@ -5,14 +5,13 @@ import pyparsing as py
 from openad.core.help import help_dict_create_v2
 
 # Plugin
-from openad_grammar_def import list_quoted, str_quoted, str_strict_or_quoted, clause_save_as
+from openad_grammar_def import list_quoted, str_quoted, str_strict_or_quoted, clause_using, clause_save_as
 from openad_plugin_rxn.plugin_grammar_def import (
     predict,
     reaction_s,
     f_rom,
     clause_no_cache,
 )
-from openad_plugin_rxn.commands.predict_reactions.description import description
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 from openad_plugin_rxn.commands.predict_reactions.predict_reactions import PredictReactions
 
@@ -53,6 +52,7 @@ class PluginCommand:
                         )
                     )
                 )
+                + clause_using
                 + clause_no_cache
                 + clause_save_as
             )(self.parser_id)
@@ -60,7 +60,7 @@ class PluginCommand:
 
         # Command help
         clauses_single = "[ USING (ai_model='<ai_model>') ] [ no cache ]"
-        clauses_multiple = "[ USING (ai_model='<ai_model>' <topn>=<integer>) ] [ no cache ]"
+        clauses_multiple = "[ USING (ai_model='<ai_model>' topn=<integer>) ] [ no cache ]"
         grammar_help.append(
             help_dict_create_v2(
                 plugin_name=PLUGIN_NAME,
@@ -72,7 +72,7 @@ class PluginCommand:
                     f"{PLUGIN_NAMESPACE} predict reactions from file '<filename.csv>' {clauses_multiple}",
                     f"{PLUGIN_NAMESPACE} predict reactions from dataframe <dataframe_name> {clauses_multiple}",
                 ],
-                description=description,
+                description_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "description.txt"),
             )
         )
 

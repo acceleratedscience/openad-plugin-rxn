@@ -132,6 +132,21 @@ class RXNLoginManager:
         """
         api_config = load_credentials(self.cred_path)
         if api_config is None:
+            output_text(
+                "\n".join(
+                    [
+                        "<h1>RXN Authentication</h1>",
+                        "To obtain your API key, visit:",
+                        "<link>rxn.app.accelerate.science</link>",
+                        "",
+                        "For instructions, visit:",
+                        "<link>github.com/acceleratedscience/openad-plugin-rxn#login</link>",
+                    ]
+                ),
+                return_val=False,
+                pad=2,
+            )
+
             output_warning(
                 ["Please provide your RXN credentials", f"Leave this blank to use the default: {self.DEFAULT_URL}"],
                 return_val=False,

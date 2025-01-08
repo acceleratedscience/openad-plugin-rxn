@@ -1,1 +1,5 @@
-The RXN plugin helps you predict chemical reactions, retrosynthesis pathways and experimental procedures. You can train AI models with data for specific chemistry domains.
+The RXN plugin helps you predict chemical reactions, retrosynthesis pathways and experimental procedures.
+
+RXN was trained on more than 3 million chemical reactions, derived from publicly available patents. Since then, the Molecular Transformer has outperformed all data-driven models, achieving more than 90% accuracy on forward chemical reaction predictions (reactants + reagents to products).
+
+You can train AI models with data for specific chemistry domains.

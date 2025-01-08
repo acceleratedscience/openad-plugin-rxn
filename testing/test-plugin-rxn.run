@@ -1,10 +1,9 @@
 rxn
 rxn ?
-? rxn
 
 rxn reset login ?
-reset login
-reset login
+rxn reset login
+rxn reset login
 
 rxn list models ?
 rxn list models
@@ -23,10 +22,11 @@ rxn predict reaction ?
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' no cache
+rxn predict reaction 'BrBr.ABD.c1ccc2cc3ccccc3cc2c1CCO'
 
-rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1']
-rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1']
-rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1'] no cache
+rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']
+rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']
+rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1'] no cache
 
 rxn predict reactions from file 'my_reactions.csv'
 rxn predict reactions from file 'my_reactions.csv'

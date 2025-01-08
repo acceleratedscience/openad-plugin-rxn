@@ -1,0 +1,10 @@
+Predict the reactions of two or more molecules defined by their SMILES.
+
+topn: number of predictions to make per reaction.
+
+Examples:
+- <cmd>rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'</cmd>
+- <cmd>rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' no cache</cmd>
+- <cmd>rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']</cmd>
+- <cmd>rxn predict reactions from file 'my_reactions.csv'</cmd>
+- <cmd>rxn predict reactions from dataframe my_reactions_df</cmd>

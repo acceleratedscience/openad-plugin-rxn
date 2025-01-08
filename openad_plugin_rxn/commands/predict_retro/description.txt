@@ -1,9 +1,4 @@
-from openad_plugin_rxn.plugin_params import CLAUSES
-
-description = """Get a molecule's retrosynthesis route prediction.
-
-RXN was trained on more than 3 million chemical reactions, derived from publicly available patents. Since then, the Molecular Transformer has outperformed all data-driven models, achieving more than 90% accuracy on forward chemical reaction predictions (reactants + reagents to products).
-
+Get a molecule's retrosynthesis route prediction.
 
 <h1>The USING clause</h1>
 
@@ -42,5 +37,4 @@ RXN was trained on more than 3 million chemical reactions, derived from publicly
 <h1>Examples</h1>
 
 - <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3)</cmd>
-- <cmd>rxn predict retrosynthesis  'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=6 ai_model='12class-tokens-2021-05-14' ) </cmd>
-"""
+- <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=6 ai_model='12class-tokens-2021-05-14')</cmd>

@@ -14,26 +14,21 @@ rxn interpret recipe 'A solution of ((1S,2S)-1-{[(methoxymethyl-biphenyl-4-yl)-(
 
 rxn predict retrosynthesis ?
 rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3)
-rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3)
-rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3) no cache
+rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3) use cache
 rxn predict retrosynthesis 'ABCDEF' using (max_steps=3)
 
 rxn predict reaction ?
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'
-rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'
-rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' no cache
+rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' use cache
 rxn predict reaction 'BrBr.ABD.c1ccc2cc3ccccc3cc2c1CCO'
 
 rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']
-rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']
-rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1'] no cache
+rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1'] use cache
 rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1'] using (ai_model='2018-08-31')
 rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO' , 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1'] using (topn=3)
 
 rxn predict reactions from file 'my_reactions.csv'
-rxn predict reactions from file 'my_reactions.csv'
-rxn predict reactions from file 'my_reactions.csv' no cache
+rxn predict reactions from file 'my_reactions.csv' use cache
 
 rxn predict reactions from dataframe my_reactions_df
-rxn predict reactions from dataframe my_reactions_df
-rxn predict reactions from dataframe my_reactions_df no cache
+rxn predict reactions from dataframe my_reactions_df use cache

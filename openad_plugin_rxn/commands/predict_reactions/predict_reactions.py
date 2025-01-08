@@ -45,7 +45,7 @@ class PredictReactions(RXNPlugin):
     # Command
     reactions_list = []
     using_params = {}
-    no_cache = False
+    use_cache = False
 
     # Sorting
     cached_reactions = {}
@@ -79,7 +79,7 @@ class PredictReactions(RXNPlugin):
         # Parse command
         self.reactions_list = self._parse_reactions_list()
         self.using_params = self.parse_using_params(self.cmd, self.using_params_defaults)
-        self.no_cache = bool(self.cmd.get("no_cache"))
+        self.use_cache = bool(self.cmd.get("use_cache"))
 
         if not self.reactions_list:
             return False
@@ -310,7 +310,7 @@ class PredictReactions(RXNPlugin):
                 continue
 
             # Check for cached results
-            elif not self.no_cache:
+            elif self.use_cache:
                 input_smiles_key = self.homogenize_smiles(input_smiles)
                 topn = self.using_params.get("topn")
                 topn_str = "" if topn in [None, 0, "0"] else f"-topn-{topn}"
@@ -361,9 +361,6 @@ class PredictReactions(RXNPlugin):
                     # Batch topn function - https://github.com/rxn4chemistry/rxn4chemistry/blob/9bfd050153ac754298353c1de52e45bb6bb9cf97/rxn4chemistry/core.py#L507
                     # This endpoint consumes reactions as lists instead of strings.
                     reactions_list_sanitized = [r.split(".") for r in self.reactions_list_sanitized]
-                    # print("- reactions_list_sanitized", reactions_list_sanitized)  # %%
-                    # print("- topn", topn)
-                    # print("- ai_model", ai_model)
                     launch_job_response = self.api.predict_reaction_batch_topn(reactions_list_sanitized, topn, ai_model)
                 else:
                     # Regular batch function - https://github.com/rxn4chemistry/rxn4chemistry/blob/9bfd050153ac754298353c1de52e45bb6bb9cf97/rxn4chemistry/core.py#L436
@@ -415,11 +412,10 @@ class PredictReactions(RXNPlugin):
                 else:
                     response = self.api.get_predict_reaction_batch_results(task_id)
 
-                # Job still running - keep on waiting
-                if response.get("task_status") == "RUNNING":
-                    raise Warning
                 if not response:
                     raise Warning("Empty server response")
+                if response.get("task_status") == "RUNNING":
+                    raise Warning("Still running")
                 if not response.get("predictions"):
                     if response.get("response", {}).get("payload", {}).get("task", {}).get("status") == "ERROR":
                         raise ValueError(response)

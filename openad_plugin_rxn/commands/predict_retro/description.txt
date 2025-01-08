@@ -36,5 +36,7 @@ Get a molecule's retrosynthesis route prediction.
     
 <h1>Examples</h1>
 
+- <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12'</cmd>
+- <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' use cache</cmd>
 - <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3)</cmd>
 - <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=6 ai_model='12class-tokens-2021-05-14')</cmd>

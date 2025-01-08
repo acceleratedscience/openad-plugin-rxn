@@ -10,7 +10,7 @@ from openad_plugin_rxn.plugin_grammar_def import (
     predict,
     reaction_s,
     f_rom,
-    clause_no_cache,
+    clause_use_cache,
 )
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 from openad_plugin_rxn.commands.predict_reactions.predict_reactions import PredictReactions
@@ -53,14 +53,14 @@ class PluginCommand:
                     )
                 )
                 + clause_using
-                + clause_no_cache
+                + clause_use_cache
                 + clause_save_as
             )(self.parser_id)
         )
 
         # Command help
-        clauses_single = "[ USING (ai_model='<ai_model>') ] [ no cache ]"
-        clauses_multiple = "[ USING (ai_model='<ai_model>' topn=<integer>) ] [ no cache ]"
+        clauses_single = "[ USING (ai_model='<ai_model>') ] [ use cache ]"
+        clauses_multiple = "[ USING (ai_model='<ai_model>' topn=<integer>) ] [ use cache ]"
         grammar_help.append(
             help_dict_create_v2(
                 plugin_name=PLUGIN_NAME,

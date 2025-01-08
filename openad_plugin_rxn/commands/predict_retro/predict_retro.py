@@ -32,6 +32,7 @@ class PredictRetro(RXNPlugin):
     # Command
     input_smiles = None
     using_params = {}
+    use_cache = False
 
     # Error messages
     err_msg_unknown = "Something went wrong"
@@ -87,7 +88,7 @@ class PredictRetro(RXNPlugin):
 
         # Check if result is in cache
         input_smiles_key = canonicalize(self.input_smiles)
-        if not self.no_cache:
+        if self.use_cache:
             self.result_from_cache = self.retrieve_result_cache(
                 name=f"predict-retro-{self.using_params.get('ai_model')}",
                 key=input_smiles_key,
@@ -171,8 +172,8 @@ class PredictRetro(RXNPlugin):
         # Parse parameters from the USING clause
         self.using_params = self.parse_using_params(self.cmd, self.using_params_defaults)
 
-        # Parse no_cache clause
-        self.no_cache = bool(self.cmd.get("no_cache"))
+        # Parse use_cache clause
+        self.use_cache = bool(self.cmd.get("use_cache"))
 
         return True
 
@@ -257,6 +258,8 @@ class PredictRetro(RXNPlugin):
                     spinner.start("Processing retrosynthesis")
 
                 # Run query
+                # Note: there's an occasional bug with RXN which will be caught by the except block
+                # It will say None type does not have method get()
                 response = self.api.get_predict_automatic_retrosynthesis_results(task_id)
 
                 # Job ready
@@ -365,7 +368,6 @@ class PredictRetro(RXNPlugin):
         Get a printable representation of the reaction tree.
         """
         if GLOBAL_SETTINGS["display"] == "notebook":
-            # print(self.__get_print_str_reaction_tree_jup(mol_list, level=0))
             return self.__get_print_str_reaction_tree_jup(mol_list, level=0)
         else:
             return self.__get_print_str_reaction_tree_cli(mol_list, level=0, max_width=None)

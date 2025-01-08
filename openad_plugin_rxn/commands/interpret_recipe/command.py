@@ -21,7 +21,7 @@ class PluginCommand:
 
     def __init__(self):
         self.category = "General"
-        self.index = 2
+        self.index = 1
         self.name = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         self.parser_id = f"plugin_{PLUGIN_KEY}_{self.name}"
 

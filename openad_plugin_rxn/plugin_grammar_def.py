@@ -9,6 +9,9 @@ recipe = py.CaselessKeyword("recipe")
 reset = py.CaselessKeyword("reset")
 login = py.CaselessKeyword("login")
 
+clear = py.CaselessKeyword("clear")
+cache = py.CaselessKeyword("cache")
+
 predict = py.CaselessKeyword("predict")
 retrosynthesis = py.MatchFirst([py.CaselessKeyword("retrosynthesis"), py.CaselessKeyword("retro")])
 

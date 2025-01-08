@@ -5,7 +5,7 @@ import pandas as pd
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.helpers.jupyter import parse_using_clause
-from openad.helpers.output import output_error, output_text
+from openad.helpers.output import output_text, output_error, output_success
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg
@@ -392,6 +392,15 @@ class RXNPlugin:
             return result.get("payload")
         except Exception:  # pylint: disable=broad-except
             return False
+
+    def clear_cache(self):
+        """
+        Clear the cache directory.
+        """
+        cache_dir = self._get_cache_dir()
+        for file in os.listdir(cache_dir):
+            os.remove(os.path.join(cache_dir, file))
+        output_success("All cache files cleared", return_val=False)
 
     def _get_cache_dir(self):
         """

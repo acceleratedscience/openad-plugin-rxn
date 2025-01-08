@@ -258,8 +258,9 @@ class PredictRetro(RXNPlugin):
                     spinner.start("Processing retrosynthesis")
 
                 # Run query
-                # Note: there's an occasional bug with RXN which will be caught by the except block
-                # It will say None type does not have method get()
+                # Note: there's an occasional bug with RXN:
+                # 'NoneType' object has no attribute 'get'
+                # This is non-fatal and will be caught by the except block
                 response = self.api.get_predict_automatic_retrosynthesis_results(task_id)
 
                 # Job ready

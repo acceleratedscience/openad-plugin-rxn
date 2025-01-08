@@ -11,7 +11,7 @@ from openad_plugin_rxn.plugin_master_class import RXNPlugin
 
 
 class PluginCommand:
-    """List rxn models"""
+    """Clear cache"""
 
     category: str  # Category of command
     index: int  # Order in help

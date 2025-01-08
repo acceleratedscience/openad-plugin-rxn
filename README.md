@@ -43,7 +43,7 @@ In order to use this plugin, you need an API key. You'll get 100 API request for
 1. Sign up for an RXN account at [rxn.app.accelerate.science](https://rxn.app.accelerate.science)
 2. Obtain your API key by clicking the user profile icon in the top right hand corner and select "Account", then select the "My keys" tab.
     
-    <a href="assets/rxn-api-key.png" target="_blank"><img src="assets/rxn-api-key.png" /></a>
+    ![RXN API key](assets/rxn-api-key.png)
 
 3. Use any RXN command to be prompted for your credentials.
 

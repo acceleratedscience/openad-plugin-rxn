@@ -134,13 +134,13 @@ class PredictRetro(RXNPlugin):
         # `enrich mols with analysis`
         save_result(
             create_analysis_record(
-                self.input_smiles,
-                PLUGIN_KEY,
-                "Predict_Retrosynthesis",
-                self.using_params,
-                reactions_dict_list,
+                smiles=self.input_smiles,
+                toolkit=PLUGIN_KEY,
+                function="predict_retrosynthesis",
+                parameters=self.using_params,
+                results=reactions_dict_list,
             ),
-            cmd_pointer=self.cmd_pointer,
+            self.cmd_pointer,
         )
 
         # STEP 4: Display results or return data

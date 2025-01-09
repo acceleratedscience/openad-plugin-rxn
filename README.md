@@ -6,7 +6,11 @@ _This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-too
 
 ## About RXN
 
-RXN helps you predict chemical reactions, retrosynthesis pathways and experimental procedures. You can train AI models with data for specific chemistry domains.
+RXN helps you predict chemical reactions, retrosynthesis pathways and experimental procedures.
+
+RXN was trained on more than 3 million chemical reactions, derived from publicly available patents. Since then, the Molecular Transformer has outperformed all data-driven models, achieving more than 90% accuracy on forward chemical reaction predictions (reactants + reagents to products).
+
+You can train AI models with data for specific chemistry domains.
 
 [rxn.app.accelerate.science](https://rxn.app.accelerate.science) / [GitHub](https://github.com/rxn4chemistry)
 

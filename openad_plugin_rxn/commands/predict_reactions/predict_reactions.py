@@ -11,10 +11,12 @@ from openad.helpers.spinner import spinner
 from openad.helpers.output import output_text, output_error
 from openad.plugins.style_parser import tags_to_markdown
 from openad.helpers.jupyter import save_df_as_csv
+from openad.smols.smol_cache import create_analysis_record, save_result
 
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg
+from openad_plugin_rxn.plugin_params import PLUGIN_KEY
 from openad_plugin_rxn.plugin_master_class import RXNPlugin
 
 
@@ -193,6 +195,27 @@ class PredictReactions(RXNPlugin):
                 key=prediction_smiles_key,
                 payload=prediction,
             )
+
+            # Save results as analysis records that can be merged
+            # with the molecule working set in a follow up comand:
+            # `enrich mols with analysis`
+            output_smiles = prediction.get("smiles", "").split(">>")
+            output_smiles = [output_smiles[1]] if len(output_smiles) > 1 else []
+            all_smiles = input_smiles + output_smiles
+            for smiles in all_smiles:
+                save_result(
+                    create_analysis_record(
+                        smiles=smiles,
+                        toolkit=PLUGIN_KEY,
+                        function="predict_reaction",
+                        parameters=self.using_params,
+                        results={
+                            "sources": input_smiles,
+                            "result": output_smiles,
+                        },
+                    ),
+                    self.cmd_pointer,
+                )
 
             # PRINT REACTION - NEWLY GENERATED REACTIONS
             # ------------------------------------------
@@ -550,8 +573,9 @@ class PredictReactions(RXNPlugin):
             output = ['<div style="display:inline-block; border:solid 1px #ccc">']
 
             # Add image
-            if prediction:
-                output.append(self.__get_reaction_image(prediction["smiles"]))
+            # Except for topn results, which shows a list of results instead of one
+            if prediction and not self.__is_topn_result(prediction):
+                output.append(self.__get_reaction_image(prediction.get("smiles")))
 
             # Wrap text in padded div
             print_str = "<div style='padding: 32px'>" + print_str + "</div>"

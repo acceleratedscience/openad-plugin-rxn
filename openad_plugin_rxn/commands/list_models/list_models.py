@@ -33,8 +33,6 @@ class ListModels(RXNPlugin):
         Run the command.
         """
 
-        output_text("<red>This is a <yellow>test</yellow> message</red>")
-
         # Load models
         try:
             all_models = self.api.list_models()

@@ -4,8 +4,10 @@ import pyparsing as py
 # OpenAD
 from openad.core.help import help_dict_create_v2
 
+# OpenAD tools
+from openad_tools.grammar_def import molecule_identifier, clause_using
+
 # Plugin
-from openad_grammar_def import molecule_identifier, clause_using
 from openad_plugin_rxn.plugin_grammar_def import predict, retrosynthesis, clause_use_cache
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 from openad_plugin_rxn.commands.predict_retro.predict_retro import PredictRetro

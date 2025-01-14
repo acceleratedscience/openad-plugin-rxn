@@ -4,13 +4,15 @@ import pandas as pd
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
-from openad.helpers.jupyter import parse_using_clause
-from openad.helpers.output import output_text, output_error, output_success
+
+# OpenAD tools
+from openad_tools.pyparsing import parse_using_clause
+from openad_tools.output import output_text, output_error, output_success
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg
 from openad_plugin_rxn.plugin_login import RXNLoginManager
-from openad_plugin_rxn.plugin_params import PLUGIN_KEY, PLUGIN_NAME
+from openad_plugin_rxn.plugin_params import PLUGIN_KEY
 
 spinner_msg = [
     "",

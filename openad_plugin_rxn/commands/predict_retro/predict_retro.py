@@ -6,11 +6,13 @@ from IPython.display import display, HTML
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.smols.smol_cache import create_analysis_record, save_result
 from openad.smols.smol_functions import canonicalize, valid_smiles
-from openad.helpers.spinner import spinner
-from openad.plugins.style_parser import strip_tags
-from openad.helpers.output import output_text, output_error
-from openad.helpers.general import get_print_width
-from openad.helpers.jupyter import jup_display_input_molecule
+
+# OpenAD tools
+from openad_tools.spinner import spinner
+from openad_tools.helpers import get_print_width
+from openad_tools.style_parser import strip_tags
+from openad_tools.output import output_text, output_error
+from openad_tools.jupyter import jup_display_input_molecule
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg

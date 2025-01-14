@@ -4,8 +4,10 @@ import pyparsing as py
 # OpenAD
 from openad.core.help import help_dict_create_v2
 
+# OpenAD tools
+from openad_tools.grammar_def import str_quoted
+
 # Plugin
-from openad_grammar_def import str_quoted
 from openad_plugin_rxn.plugin_grammar_def import interpret, recipe
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 from openad_plugin_rxn.commands.interpret_recipe.interpret_recipe import InterpretRecipe

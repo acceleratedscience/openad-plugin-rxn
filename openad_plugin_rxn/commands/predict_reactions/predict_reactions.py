@@ -7,12 +7,13 @@ from IPython.display import display, HTML
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
 from openad.smols.smol_functions import valid_smiles
-from openad.helpers.spinner import spinner
-from openad.helpers.output import output_text, output_error
-from openad.plugins.style_parser import tags_to_markdown
-from openad.helpers.jupyter import save_df_as_csv
 from openad.smols.smol_cache import create_analysis_record, save_result
 
+# OpenAD tools
+from openad_tools.spinner import spinner
+from openad_tools.style_parser import tags_to_markdown
+from openad_tools.output import output_text, output_error
+from openad_tools.jupyter import save_df_as_csv
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg

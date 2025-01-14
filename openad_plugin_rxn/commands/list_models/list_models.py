@@ -2,12 +2,10 @@ import pandas as pd
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
-from openad.helpers.jupyter import save_df_as_csv
-from openad.helpers.output import output_table, output_error
 
-# Plugin
-from openad_plugin_rxn.plugin_msg import msg
-from openad_plugin_rxn.plugin_params import PLUGIN_KEY
+# OpenAD tools
+from openad_tools.jupyter import save_df_as_csv
+from openad_tools.output import output_table, output_error, output_text
 
 # Plugin
 from openad_plugin_rxn.plugin_master_class import RXNPlugin
@@ -34,6 +32,8 @@ class ListModels(RXNPlugin):
         """
         Run the command.
         """
+
+        output_text("<red>This is a <yellow>test</yellow> message</red>")
 
         # Load models
         try:

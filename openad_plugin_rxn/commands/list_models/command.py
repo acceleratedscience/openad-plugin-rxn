@@ -4,11 +4,12 @@ import pyparsing as py
 # OpenAD
 from openad.core.help import help_dict_create_v2
 
+# OpenAD tools
+from openad_tools.grammar_def import clause_save_as
+
 # Plugin
-from openad_grammar_def import clause_save_as
 from openad_plugin_rxn.plugin_grammar_def import l_ist, models
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
-
 from openad_plugin_rxn.commands.list_models.list_models import ListModels
 from openad_plugin_rxn.commands.list_models.description import description
 

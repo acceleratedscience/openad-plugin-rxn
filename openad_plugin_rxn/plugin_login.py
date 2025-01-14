@@ -6,11 +6,13 @@ from time import sleep
 from datetime import datetime
 
 # OpenAD
-from openad_plugin_rxn.plugin_msg import msg
-from openad.helpers.output import output_text, output_success, output_warning, output_error
 from openad.helpers.credentials import load_credentials, get_credentials, write_credentials
 
+# OpenAD tools
+from openad_tools.output import output_text, output_success, output_warning, output_error
+
 # Plugin
+from openad_plugin_rxn.plugin_msg import msg
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY, PLUGIN_NAME
 from rxn4chemistry import RXN4ChemistryWrapper
 

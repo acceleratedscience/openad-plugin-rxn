@@ -2,12 +2,13 @@ import os
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
-from openad.helpers.spinner import spinner
-from openad.helpers.output import output_text, output_error
+
+# OpenAD tools
+from openad_tools.spinner import spinner
+from openad_tools.output import output_text, output_error
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg
-from openad_plugin_rxn.plugin_params import PLUGIN_KEY
 from openad_plugin_rxn.plugin_master_class import RXNPlugin
 
 

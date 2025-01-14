@@ -4,8 +4,10 @@ import pyparsing as py
 # OpenAD
 from openad.core.help import help_dict_create_v2
 
+# OpenAD tools
+from openad_tools.grammar_def import list_quoted, str_quoted, str_strict_or_quoted, clause_using, clause_save_as
+
 # Plugin
-from openad_grammar_def import list_quoted, str_quoted, str_strict_or_quoted, clause_using, clause_save_as
 from openad_plugin_rxn.plugin_grammar_def import (
     predict,
     reaction_s,

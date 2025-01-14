@@ -26,7 +26,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-openad_grammar_def = { git = "ssh://git@github.com/acceleratedscience/openad-grammar-def", branch = "main" }
+openad_tools = { git = "ssh://git@github.com/acceleratedscience/openad-tools", tag = "v0.0.1" }
 
 
 

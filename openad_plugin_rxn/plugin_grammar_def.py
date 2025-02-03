@@ -19,5 +19,5 @@ reaction_s = py.MatchFirst([py.CaselessKeyword("reaction"), py.CaselessKeyword("
 f_rom = py.CaselessKeyword("from")
 # Note: we listen to use_saved for backward compatibility with the toolkits. This can be removed in the future.
 clause_use_cache = py.Optional(
-    py.MatchFirst(py.CaselessKeyword("use cache"), py.Optional(py.CaselessKeyword("use_saved")))("use_cache")
+    py.MatchFirst([py.CaselessKeyword("use cache"), py.CaselessKeyword("use_saved")])("use_cache")
 )

@@ -60,6 +60,41 @@ class PluginCommand:
             )(self.parser_id)
         )
 
+        # BACKWARD COMPATIBILITY WITH TOOLKIT COMMAND
+        # -------------------------------------------
+        # Original commands:
+        #   - predict reaction in batch from list/file/dataframe ...  [ using (ai_model='<ai_model>') ] [ use_saved ]
+        #   - predict reaction topn in batch from list/file/dataframe [ using (topn=<integer> ai_model='<ai_model>') ] [ use_saved ]
+        # New command:
+        #   - rxn predict reactions from list/file/dataframe ... [ USING (ai_model='<ai_model>' topn=<integer>) ] [ use cache ]
+        # To be forwarded:
+        #   - rxn predict reaction [ topn ] in batch from list/file/dataframe ... [ USING (topn=<integer>) ] [ use_saved ]
+        statements.append(
+            py.Forward(
+                py.Word(PLUGIN_NAMESPACE)
+                + predict
+                + reaction_s
+                + py.Optional(py.CaselessKeyword("topn")("topn"))
+                + py.Optional(py.CaselessKeyword("in") + py.CaselessKeyword("batch"))
+                + (
+                    # Single reaction
+                    str_quoted("from_str")
+                    # Multiple reactions
+                    | (
+                        f_rom
+                        + (
+                            (py.Suppress("list") + list_quoted)("from_list")
+                            | (py.Suppress("file") + str_quoted("from_file"))
+                            | (py.Suppress("dataframe") + str_strict_or_quoted("from_df"))
+                        )
+                    )
+                )
+                + clause_using
+                + clause_use_cache
+                + clause_save_as
+            )(self.parser_id)
+        )
+
         # Command help
         clauses_single = "[ USING (ai_model='<ai_model>') ] [ use cache ]"
         clauses_multiple = "[ USING (ai_model='<ai_model>' topn=<integer>) ] [ use cache ]"

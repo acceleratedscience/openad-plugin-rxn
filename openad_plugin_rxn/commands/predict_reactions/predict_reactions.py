@@ -181,7 +181,7 @@ class PredictReactions(RXNPlugin):
             # 1) Input smiles
             input_smiles = reaction.split(".")
             input_smiles_key = self.homogenize_smiles(input_smiles)
-            topn = self.using_params.get("topn")
+            topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
             topn_str = "" if topn in [None, 0, "0"] else f"-topn-{topn}"
             self.store_result_cache(
                 name=f"predict-reaction-{self.using_params.get('ai_model')}{topn_str}",
@@ -336,7 +336,7 @@ class PredictReactions(RXNPlugin):
             # Check for cached results
             elif self.use_cache:
                 input_smiles_key = self.homogenize_smiles(input_smiles)
-                topn = self.using_params.get("topn")
+                topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
                 topn_str = "" if topn in [None, 0, "0"] else f"-topn-{topn}"
                 result_from_cache = self.retrieve_result_cache(
                     name=f"predict-reaction-{self.using_params.get('ai_model')}{topn_str}",
@@ -371,7 +371,7 @@ class PredictReactions(RXNPlugin):
 
                 # raise Exception("This is a test error")
                 ai_model = self.using_params.get("ai_model")
-                topn = self.using_params.get("topn")
+                topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
 
                 # Note: RXN provides a separate API endpoint for single reactions,
                 # which returns a bit more data including an image, but we don't use
@@ -430,7 +430,7 @@ class PredictReactions(RXNPlugin):
                     spinner.start(f"Processing prediction - retry #{retries}")
 
                 # raise Exception("This is a test error")
-                topn = self.using_params.get("topn")
+                topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
                 if topn not in [None, 0, "0"]:
                     response = self.api.get_predict_reaction_batch_topn_results(task_id)
                 else:
@@ -922,3 +922,14 @@ class PredictReactions(RXNPlugin):
         svg = drawer.GetDrawingText()
 
         return svg
+
+    def _get_backward_compatible_topn(self):
+        """
+        Ensure backward compatibility with the toolkit command.
+
+        If topn is present in the command, we set the value to 5 to match the toolkit behavior.
+        """
+        if "topn" in self.cmd:
+            return 5
+        else:
+            return None

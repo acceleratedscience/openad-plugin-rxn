@@ -17,4 +17,7 @@ retrosynthesis = py.MatchFirst([py.CaselessKeyword("retrosynthesis"), py.Caseles
 
 reaction_s = py.MatchFirst([py.CaselessKeyword("reaction"), py.CaselessKeyword("reactions")])
 f_rom = py.CaselessKeyword("from")
-clause_use_cache = py.Optional(py.CaselessKeyword("use cache"))("use_cache")
+# Note: we listen to use_saved for backward compatibility with the toolkits. This can be removed in the future.
+clause_use_cache = py.Optional(
+    py.MatchFirst(py.CaselessKeyword("use cache"), py.Optional(py.CaselessKeyword("use_saved")))("use_cache")
+)

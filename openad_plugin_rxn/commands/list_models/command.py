@@ -34,6 +34,20 @@ class PluginCommand:
         # Command definition
         statements.append(py.Forward(py.Word(PLUGIN_NAMESPACE) + l_ist + models + clause_save_as)(self.parser_id))
 
+        # BACKWARD COMPATIBILITY WITH TOOLKIT COMMAND
+        # -------------------------------------------
+        # Original command:
+        #   - list rxn models
+        # New command:
+        #   - rxn list models
+        # To be forwarded:
+        #   - rxn list rxn models
+        statements.append(
+            py.Forward(py.Word(PLUGIN_NAMESPACE) + l_ist + py.CaselessKeyword("rxn") + models + clause_save_as)(
+                self.parser_id
+            )
+        )
+
         # Command help
         grammar_help.append(
             help_dict_create_v2(

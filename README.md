@@ -1,4 +1,4 @@
-# OpenAD Plugin - Deep Search
+# OpenAD Plugin - RXN
 
 _This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-toolkit)_
 

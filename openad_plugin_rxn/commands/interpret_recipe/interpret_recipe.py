@@ -59,7 +59,7 @@ class InterpretRecipe(RXNPlugin):
             actios_from_procedure_results = self.api.paragraph_to_actions(recipe)
             if not actios_from_procedure_results["actions"]:
                 raise ValueError("No actions found in the provided paragraph")
-            recipe_steps.append("<h1>Recipe steps:</h1>")
+            recipe_steps.append("<h3>Recipe steps:</h3>")
             for index, action in enumerate(actios_from_procedure_results["actions"], 1):
                 recipe_steps.append(f"{index}. {action}")
             recipe_steps_str = "\n".join(recipe_steps)

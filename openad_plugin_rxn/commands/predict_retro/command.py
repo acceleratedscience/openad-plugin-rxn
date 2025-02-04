@@ -33,7 +33,7 @@ class PluginCommand:
         # Command definition
         statements.append(
             py.Forward(
-                py.Word(PLUGIN_NAMESPACE)
+                py.CaselessKeyword(PLUGIN_NAMESPACE)
                 + predict
                 + retrosynthesis
                 + molecule_identifier("smiles")

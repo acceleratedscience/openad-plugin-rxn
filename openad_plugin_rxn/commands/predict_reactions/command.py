@@ -38,7 +38,7 @@ class PluginCommand:
         # Command definition
         statements.append(
             py.Forward(
-                py.Word(PLUGIN_NAMESPACE)
+                py.CaselessKeyword(PLUGIN_NAMESPACE)
                 + predict
                 + reaction_s
                 + (
@@ -68,10 +68,10 @@ class PluginCommand:
         # New command:
         #   - rxn predict reactions from list/file/dataframe ... [ USING (ai_model='<ai_model>' topn=<integer>) ] [ use cache ]
         # To be forwarded:
-        #   - rxn predict reaction [ topn ] in batch from list/file/dataframe ... [ USING (topn=<integer>) ] [ use_saved ]
+        #   - [ rxn ] predict reaction [ topn ] in batch from list/file/dataframe ... [ USING (topn=<integer>) ] [ use_saved ]
         statements.append(
             py.Forward(
-                py.Word(PLUGIN_NAMESPACE)
+                py.CaselessKeyword(PLUGIN_NAMESPACE)
                 + predict
                 + reaction_s
                 + py.Optional(py.CaselessKeyword("topn")("topn"))

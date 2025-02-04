@@ -132,12 +132,18 @@ class PredictReactions(RXNPlugin):
             if not self.reaction_predictions:
                 return
 
-            # Insert None values in the reaction_predictions list
-            # at the same index where the invalid reactions were,
-            # so indices match between reactions_list and reaction_predictions
+            # Insert None values in the reaction_predictions list at the
+            # same index where the invalid or cached reactions were, so
+            # indices match between reactions_list and reaction_predictions
             for reaction in self.reactions_list:
-                if reaction in self.invalid_reactions:
+                if reaction in self.invalid_reactions or reaction in self.cached_reactions:
                     self.reaction_predictions.insert(self.reactions_list.index(reaction), None)
+
+        # # For debugging
+        # print("\nReactions:\n", self.reactions_list)
+        # print("\nInvalid:\n", self.invalid_reactions)
+        # print("\nCached:\n", self.cached_reactions)
+        # print("\nPredictions:\n", self.reaction_predictions)
 
         # Loop through reaction results and print them
         for i, reaction in enumerate(self.reactions_list):
@@ -278,7 +284,11 @@ class PredictReactions(RXNPlugin):
                     else:
                         from_list = self.get_column_as_list_from_dataframe(reactions_df, "reactions")
                         if not from_list:
-                            return output_error("No reactions found in CSV file, file should have column 'reactions'")
+                            output_error(
+                                "No reactions found in CSV file. Reactions should be stored in a column named 'Reactions'",
+                                return_val=False,
+                            )
+                            return []
                         self.validate_reactions_list(from_list)
 
                 # TXT file

@@ -1,5 +1,7 @@
 Predict the reactions of two or more molecules defined by their SMILES.
 
+When providing reactions in a dataframe or CSV, make sure they are stored in a column named "Reactions".
+
 <h1>Parameters</h1>
 
 <cmd>ai_model='<model_name>'</cmd>

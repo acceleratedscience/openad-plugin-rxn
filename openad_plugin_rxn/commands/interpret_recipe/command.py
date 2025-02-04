@@ -32,7 +32,7 @@ class PluginCommand:
 
         # Command definition
         statements.append(
-            py.Forward(py.Word(PLUGIN_NAMESPACE) + interpret + recipe + str_quoted("recipe"))(self.parser_id)
+            py.Forward(py.CaselessKeyword(PLUGIN_NAMESPACE) + interpret + recipe + str_quoted("recipe"))(self.parser_id)
         )
 
         # Command help

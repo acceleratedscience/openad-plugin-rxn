@@ -8,7 +8,13 @@ from openad.core.help import help_dict_create_v2
 from openad_tools.grammar_def import molecule_identifier, clause_using
 
 # Plugin
-from openad_plugin_rxn.plugin_grammar_def import predict, retrosynthesis, clause_rich_output, clause_use_cache
+from openad_plugin_rxn.plugin_grammar_def import (
+    predict,
+    retrosynthesis,
+    clause_rich_output,
+    clause_use_cache,
+    clause_return_df,
+)
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 from openad_plugin_rxn.commands.predict_retro.predict_retro import PredictRetro
 from openad_plugin_rxn.commands.predict_retro.description import description
@@ -41,6 +47,7 @@ class PluginCommand:
                 + clause_using
                 + clause_rich_output
                 + clause_use_cache
+                + clause_return_df
                 # Failed attempt to allow clauses in random order... to be tested
                 # + py.ZeroOrMore(py.MatchFirst([clause_using, clause_rich_output, clause_use_cache]))
             )(self.parser_id)
@@ -52,7 +59,7 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=f"{PLUGIN_NAMESPACE} predict retrosynthesis|retro '<smiles>' [ USING (<parameter>=<value> <parameter>=<value>) ] [ rich ] [ use cache ]",
+                command=f"{PLUGIN_NAMESPACE} predict retrosynthesis|retro '<smiles>' [ USING (<parameter>=<value> <parameter>=<value>) ] [ rich ] [ use cache ] [ return df ]",
                 description=description,
             )
         )

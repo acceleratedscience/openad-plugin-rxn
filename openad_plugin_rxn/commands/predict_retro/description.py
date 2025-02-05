@@ -43,6 +43,9 @@ description = f"""Get a molecule's retrosynthesis route prediction.
 
 {CLAUSES["use_cache"]}
 
+<cmd>return df</cmd>
+    Return the reaction tree as a Pandas DataFrame instead of as JSON.
+
     
 <h1>Examples</h1>
 

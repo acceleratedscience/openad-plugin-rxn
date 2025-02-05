@@ -1,6 +1,8 @@
 import os
 import pickle
 import pandas as pd
+from rdkit.Chem import AllChem
+from rdkit.Chem.Draw import rdMolDraw2D
 
 # OpenAD
 from openad.app.global_var_lib import GLOBAL_SETTINGS
@@ -280,6 +282,36 @@ class RXNPlugin:
             ]
 
         return output
+
+    def get_reaction_image(self, reaction_smiles: str):
+        """
+        Fetch reaction image from a smiles reaction string, for Jupyter Notebook.
+
+        Parameters
+        ----------
+        reaction_smiles : str
+            Reaction smiles string
+            Format: smiles.smiles.smiles>>smiles
+            Example: BrBr.OCCc1cccc2cc3ccccc3cc12>>BrCCc1cccc2c(Br)c3ccccc3cc12
+        """
+
+        reaction = AllChem.ReactionFromSmarts(reaction_smiles, useSmiles=True)  # pylint: disable=no-member
+
+        # Set drawing options
+        width, height = 800, 200
+        draw_options = rdMolDraw2D.MolDrawOptions()
+        draw_options.bondLineWidth = 1.0
+
+        # Create drawer
+        drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
+        drawer.SetDrawOptions(draw_options)
+
+        # Draw reaction
+        drawer.DrawReaction(reaction)
+        drawer.FinishDrawing()
+        svg = drawer.GetDrawingText()
+
+        return svg
 
     def get_confidence_style(self, confidence, return_color=False):
         """

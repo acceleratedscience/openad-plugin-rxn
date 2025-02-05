@@ -1,7 +1,5 @@
 import pandas as pd
 from time import sleep
-from rdkit.Chem import AllChem
-from rdkit.Chem.Draw import rdMolDraw2D
 from IPython.display import display, HTML
 
 # OpenAD
@@ -588,7 +586,7 @@ class PredictReactions(RXNPlugin):
             # Add image
             # Except for topn results, which shows a list of results instead of one
             if prediction and not self.__is_topn_result(prediction):
-                output.append(self.__get_reaction_image(prediction.get("smiles")))
+                output.append(self.get_reaction_image(prediction.get("smiles")))
 
             # Wrap text in padded div
             print_str = "<div style='padding: 32px'>" + print_str + "</div>"
@@ -1077,36 +1075,6 @@ class PredictReactions(RXNPlugin):
         """
         confidence_print_str_list = self.get_print_str_list__confidence(confidence)
         return "\n".join(confidence_print_str_list)
-
-    def __get_reaction_image(self, reaction_smiles: str):
-        """
-        Fetch reaction image from a smiles reaction string, for Jupyter Notebook.
-
-        Parameters
-        ----------
-        reaction_smiles : str
-            Reaction smiles string
-            Format: smiles.smiles.smiles>>smiles
-            Example: BrBr.OCCc1cccc2cc3ccccc3cc12>>BrCCc1cccc2c(Br)c3ccccc3cc12
-        """
-
-        reaction = AllChem.ReactionFromSmarts(reaction_smiles, useSmiles=True)
-
-        # Set drawing options
-        width, height = 800, 200
-        draw_options = rdMolDraw2D.MolDrawOptions()
-        draw_options.bondLineWidth = 1.0
-
-        # Create drawer
-        drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
-        drawer.SetDrawOptions(draw_options)
-
-        # Draw reaction
-        drawer.DrawReaction(reaction)
-        drawer.FinishDrawing()
-        svg = drawer.GetDrawingText()
-
-        return svg
 
     def _get_backward_compatible_topn(self):
         """

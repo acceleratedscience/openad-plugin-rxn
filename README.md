@@ -40,7 +40,7 @@ Installation for development:
 
 <br>
 
-## Login
+## Authentication
 
 In order to use this plugin, you need an API key. You'll get 100 API request for free.
 

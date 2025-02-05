@@ -1,6 +1,9 @@
-Predict the reactions of two or more molecules defined by their SMILES.
+from openad_plugin_rxn.plugin_params import CLAUSES
+
+description = f"""Predict the reactions of two or more molecules defined by their SMILES.
 
 When providing reactions in a dataframe or CSV, make sure they are stored in a column named "Reactions".
+
 
 <h1>Parameters</h1>
 
@@ -9,7 +12,17 @@ When providing reactions in a dataframe or CSV, make sure they are stored in a c
     To see a list of available models, run <cmd>rxn list models</cmd>
 
 <cmd>topn=<int></cmd>
-    Number of predictions to make per reaction.
+    Number of predictions to make per reaction. When not set, only one result will be returned.
+
+    
+<h1>Clauses</h1>
+
+{CLAUSES["rich_output"]}
+
+{CLAUSES["use_cache"]}
+
+{CLAUSES["save_as"]}
+
 
 <h1>Examples</h1>
 
@@ -19,3 +32,4 @@ When providing reactions in a dataframe or CSV, make sure they are stored in a c
 - <cmd>rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO', 'BrBr.c1ccc2cc3ccccc3cc2c1'] using (ai_model='2018-08-31' topn=3)</cmd>
 - <cmd>rxn predict reactions from file 'my_reactions.csv' using (topn=5)</cmd>
 - <cmd>rxn predict reactions from dataframe my_reactions_df</cmd>
+"""

@@ -367,16 +367,44 @@ class PredictRetro(RXNPlugin):
         else:
             return key
 
-    def _get_print_str_reaction_tree(self, mol_list: list) -> str:
+    def _get_basic_print_str_reaction_list(self, reactions_dict: dict) -> str:
         """
-        Get a printable representation of the reaction tree.
+        Get a one-dimensional printable representation of the reaction tree.
+
+        This is the default display outut.
+        """
+        output = ""
+
+        def _add_level(_reactions_dict):
+            nonlocal output
+            confidence = _reactions_dict.get("_confidence")
+            confidence = round(confidence * 100, 2) if confidence or confidence == 0 else None
+            confidence = f"{confidence:>3}%" if confidence else "n/a "
+            children = _reactions_dict.get("children", [])
+            source_smiles = [
+                child if isinstance(child, str) else f"<yellow>{child.get('value')}</yellow>" for child in children
+            ]
+            result = _reactions_dict.get("value")
+            output += f"<soft>Conf. {confidence}:</soft> <reset>{'</reset><soft> + </soft><reset>'.join(source_smiles)}</reset> ----> <green>{result}</green>\n"
+            for child in children:
+                if isinstance(child, dict):
+                    _add_level(child)
+
+        _add_level(reactions_dict)
+        return output
+
+    def _get_rich_print_str_reaction_tree(self, mol_list: list) -> str:
+        """
+        Get a rich printable representation of the reaction tree.
+
+        This is the display output when adding the 'rich' clause.
         """
         if GLOBAL_SETTINGS["display"] == "notebook":
-            return self.__get_print_str_reaction_tree_jup(mol_list, level=0)
+            return self.__get_rich_print_str_reaction_tree_jup(mol_list, level=0)
         else:
-            return self.__get_print_str_reaction_tree_cli(mol_list, level=0, max_width=None)
+            return self.__get_rich_print_str_reaction_tree_cli(mol_list, level=0, max_width=None)
 
-    def __get_print_str_reaction_tree_jup(self, mol_list: list, level=0) -> str:
+    def __get_rich_print_str_reaction_tree_jup(self, mol_list: list, level=0) -> str:
         """
         Create printable reaction tree for Jupyter Notebook output.
         """
@@ -403,7 +431,7 @@ class PredictRetro(RXNPlugin):
                 output.append(box_tags[0])
 
                 # Add children
-                output.append(self.__get_print_str_reaction_tree_jup(item.get("children", []), level=level + 1))
+                output.append(self.__get_rich_print_str_reaction_tree_jup(item.get("children", []), level=level + 1))
 
                 # Add confidence
                 confidence_print_str_list = self.get_print_str_list__confidence(confidence)
@@ -419,7 +447,7 @@ class PredictRetro(RXNPlugin):
 
         return "\n".join(output)
 
-    def __get_print_str_reaction_tree_cli(self, mol_list: list, level=0, max_width=None) -> str:
+    def __get_rich_print_str_reaction_tree_cli(self, mol_list: list, level=0, max_width=None) -> str:
         """
         Create printable reaction tree for CLI output.
 
@@ -471,7 +499,7 @@ class PredictRetro(RXNPlugin):
                 output += f"{prepend_str}<soft>├─────────────────────────</soft>\n"
 
                 # Add children
-                output += self.__get_print_str_reaction_tree_cli(
+                output += self.__get_rich_print_str_reaction_tree_cli(
                     item.get("children", []), level=level + 1, max_width=max_width
                 )
 
@@ -624,7 +652,10 @@ class PredictRetro(RXNPlugin):
         flag = self.get_flag("cached") if self.result_from_cache else ""
         # Assemble results
         for i, reactions_dict in enumerate(reactions_dict_list):
-            reaction_print_str = self._get_print_str_reaction_tree([reactions_dict])
+            if "rich_output" in self.cmd:
+                reaction_print_str = self._get_rich_print_str_reaction_tree([reactions_dict])
+            else:
+                reaction_print_str = self._get_basic_print_str_reaction_list(reactions_dict)
             output.append("")
             output.append(f"<h1>Reaction Path #{i + 1}{flag}</h1>")
             output.append(reaction_print_str)

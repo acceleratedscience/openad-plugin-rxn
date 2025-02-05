@@ -340,11 +340,12 @@ class RXNPlugin:
             output = f" <success> {flag_text} </success>"
 
         # FAILED
-        if flag_text == "FAILED":
+        elif flag_text == "FAILED":
             output = f" <on_red> {flag_text} </on_red>"
 
         # CACHED / anything else
-        output = f" <reverse> {flag_text} </reverse>"
+        else:
+            output = f" <reverse> {flag_text} </reverse>"
 
         # Trim leading whitespace if required
         if trim:

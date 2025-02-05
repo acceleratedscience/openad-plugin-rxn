@@ -12,10 +12,12 @@ from openad_plugin_rxn.plugin_grammar_def import (
     predict,
     reaction_s,
     f_rom,
+    clause_rich_output,
     clause_use_cache,
 )
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
 from openad_plugin_rxn.commands.predict_reactions.predict_reactions import PredictReactions
+from openad_plugin_rxn.commands.predict_reactions.description import description
 
 
 class PluginCommand:
@@ -55,6 +57,7 @@ class PluginCommand:
                     )
                 )
                 + clause_using
+                + clause_rich_output
                 + clause_use_cache
                 + clause_save_as
             )(self.parser_id)
@@ -96,20 +99,20 @@ class PluginCommand:
         )
 
         # Command help
-        clauses_single = "[ USING (ai_model='<ai_model>') ] [ use cache ]"
-        clauses_multiple = "[ USING (ai_model='<ai_model>' topn=<integer>) ] [ use cache ]"
+        # using_clause = "[ USING (ai_model='<ai_model>') ] [ use cache ]"
+        clauses = "[ USING (ai_model='<ai_model>' topn=<integer>) ] [ rich ] [ use cache ]"
         grammar_help.append(
             help_dict_create_v2(
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
                 command=[
-                    f"{PLUGIN_NAMESPACE} predict reaction '<smiles>.<smiles>' {clauses_single}",
-                    f"{PLUGIN_NAMESPACE} predict reactions from list ['<smiles>.<smiles>',...] {clauses_multiple}",
-                    f"{PLUGIN_NAMESPACE} predict reactions from file '<filename.csv>' {clauses_multiple}",
-                    f"{PLUGIN_NAMESPACE} predict reactions from dataframe <dataframe_name> {clauses_multiple}",
+                    f"{PLUGIN_NAMESPACE} predict reaction '<smiles>.<smiles>' {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict reactions from list ['<smiles>.<smiles>',...] {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict reactions from file '<filename.csv>' {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict reactions from dataframe <dataframe_name> {clauses}",
                 ],
-                description_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "description.txt"),
+                description=description,
             )
         )
 

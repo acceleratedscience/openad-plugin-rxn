@@ -1,4 +1,7 @@
-Get a molecule's retrosynthesis route prediction.
+from openad_plugin_rxn.plugin_params import CLAUSES
+
+description = f"""Get a molecule's retrosynthesis route prediction.
+
 
 <h1>Parameters</h1>
 
@@ -33,6 +36,13 @@ Get a molecule's retrosynthesis route prediction.
     What version of the retrosynthesis prediction model to use. The default is '2020-07-01'.
     To see available model versions, run <cmd>rxn list models</cmd> and look at the versions listed next to retrosynthesis-prediction-model.
 
+
+<h1>Clauses</h1>
+
+{CLAUSES["rich_output"]}
+
+{CLAUSES["use_cache"]}
+
     
 <h1>Examples</h1>
 
@@ -40,3 +50,4 @@ Get a molecule's retrosynthesis route prediction.
 - <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' use cache</cmd>
 - <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3)</cmd>
 - <cmd>rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=6 ai_model='12class-tokens-2021-05-14')</cmd>
+"""

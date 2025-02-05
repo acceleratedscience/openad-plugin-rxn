@@ -21,3 +21,4 @@ f_rom = py.CaselessKeyword("from")
 clause_use_cache = py.Optional(
     py.MatchFirst([py.CaselessKeyword("use cache"), py.CaselessKeyword("use_saved")])("use_cache")
 )
+clause_rich_output = py.Optional(py.CaselessKeyword("rich")("rich_output"))

@@ -301,6 +301,7 @@ class PredictRetro(RXNPlugin):
                     ],
                     return_val=False,
                 )
+                return False
 
             # Other errors
             except Exception as err:  # pylint: disable=broad-exception-caught

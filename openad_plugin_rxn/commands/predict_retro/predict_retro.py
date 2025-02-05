@@ -305,7 +305,7 @@ class PredictRetro(RXNPlugin):
             # Other errors
             except Exception as err:  # pylint: disable=broad-exception-caught
                 spinner.stop()
-                output_error(["Something went wrong", err], return_val=False)
+                # output_error(["Something went wrong", err], return_val=False)
 
     def _simplify_results(self, retrosynthetic_paths):
         """
@@ -609,7 +609,7 @@ class PredictRetro(RXNPlugin):
 
         df = pd.DataFrame(parsed_data)
         df.rename(columns={"compound [step 0]": "result", "confidence [step 0]": "confidence"}, inplace=True)
-        df.fillna("", inplace=True)
+        # df.fillna("0", inplace=True)
         return df
 
     def _display_results(self, reactions_dict_list):
@@ -621,14 +621,12 @@ class PredictRetro(RXNPlugin):
 
         # Optional CACHED flag
         flag = self.get_flag("cached") if self.result_from_cache else ""
-
         # Assemble results
         for i, reactions_dict in enumerate(reactions_dict_list):
             reaction_print_str = self._get_print_str_reaction_tree([reactions_dict])
             output.append("")
             output.append(f"<h1>Reaction Path #{i + 1}{flag}</h1>")
             output.append(reaction_print_str)
-
         # Print - Jupyter Notebook
         if GLOBAL_SETTINGS["display"] == "notebook":
             # Display image of the input molecule

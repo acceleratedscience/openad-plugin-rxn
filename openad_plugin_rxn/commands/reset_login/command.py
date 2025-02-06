@@ -28,7 +28,9 @@ class PluginCommand:
         """Create the command definition & documentation"""
 
         # Command definition
-        statements.append(py.Forward(py.CaselessKeyword(PLUGIN_NAMESPACE) + reset + login)(self.parser_id))
+        statements.append(
+            py.Forward(py.CaselessKeyword(PLUGIN_NAMESPACE) + login + py.Optional(reset)("reset"))(self.parser_id)
+        )
 
         # Command help
         grammar_help.append(
@@ -36,7 +38,7 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=f"{PLUGIN_NAMESPACE} reset login",
+                command=f"{PLUGIN_NAMESPACE} login [reset]",
                 description_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "description.txt"),
             )
         )
@@ -44,4 +46,8 @@ class PluginCommand:
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
         login_manager = RXNLoginManager(cmd_pointer)
-        login_manager.reset()
+        if "reset" in parser:
+            login_manager.reset()
+        else:
+            login_manager.login()
+

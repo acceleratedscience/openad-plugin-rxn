@@ -1,1 +1,3 @@
-Reset your login credentials. You'll be asked to provide new credentials next time you run any RXN command.
+Login only will log you into the system, If it is your first time, or after a login reset, you will be asked to provide your details.
+
+`Login Reset` will reset your login credentials. You'll be asked to provide new credentials next time you run any RXN command.

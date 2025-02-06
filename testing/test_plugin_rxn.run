@@ -38,7 +38,7 @@ rxn predict reactions from file 'my_reactions.csv' use cache
 rxn predict reactions from dataframe my_reactions_df
 rxn predict reactions from dataframe my_reactions_df use cache
 
-rxn reset login ?
-rxn reset login
-rxn reset login
+rxn login ?
+rxn login
+rxn login reset
 rxn list models

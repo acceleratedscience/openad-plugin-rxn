@@ -10,6 +10,7 @@ from openad_tools.grammar_def import list_quoted, str_quoted, str_strict_or_quot
 # Plugin
 from openad_plugin_rxn.plugin_grammar_def import (
     predict,
+    topn,
     reaction_s,
     f_rom,
     clause_rich_output,
@@ -42,6 +43,7 @@ class PluginCommand:
             py.Forward(
                 py.CaselessKeyword(PLUGIN_NAMESPACE)
                 + predict
+                + py.Optional(topn)
                 + reaction_s
                 + (
                     # Single reaction
@@ -111,6 +113,10 @@ class PluginCommand:
                     f"{PLUGIN_NAMESPACE} predict reactions from list ['<smiles>.<smiles>',...] {clauses}",
                     f"{PLUGIN_NAMESPACE} predict reactions from file '<filename.csv>' {clauses}",
                     f"{PLUGIN_NAMESPACE} predict reactions from dataframe <dataframe_name> {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict topn reactions '<smiles>.<smiles>' {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict topn reactions from list ['<smiles>.<smiles>',...] {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict topn reactions from file '<filename.csv>' {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict topn reactions from dataframe <dataframe_name> {clauses}",
                 ],
                 description=description,
             )

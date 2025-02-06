@@ -13,14 +13,13 @@ rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3)
 rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3) use cache
 rxn predict retrosynthesis 'BrCCc1cccc2c(Br)c3ccccc3cc12' using (max_steps=3) rich use cache
 rxn predict retrosynthesis 'ABCDEF' using (max_steps=3)
-rxn predict retrosynthesis 'ABCDEF' using (max_steps=3) use cache
-rxn predict retrosynthesis 'ABCDEF' using (max_steps=3) rich use cache
 
 rxn predict reaction ?
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' use cache
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' rich use cache
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' using (topn=3)
+rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' using (topn=3) use cache
 rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' using (topn=3) rich use cache
 rxn predict reaction 'BrBr.ABD.c1ccc2cc3ccccc3cc2c1CCO'
 rxn predict reaction 'BrBr.ABD.c1ccc2cc3ccccc3cc2c1CCO' use cache

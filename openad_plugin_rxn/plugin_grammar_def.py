@@ -15,6 +15,7 @@ cache = py.CaselessKeyword("cache")
 predict = py.CaselessKeyword("predict")
 retrosynthesis = py.MatchFirst([py.CaselessKeyword("retrosynthesis"), py.CaselessKeyword("retro")])
 
+topn = py.CaselessKeyword("topn")("topn")
 reaction_s = py.MatchFirst([py.CaselessKeyword("reaction"), py.CaselessKeyword("reactions")])
 f_rom = py.CaselessKeyword("from")
 # Note: we listen to use_saved for backward compatibility with the toolkits. This can be removed in the future.

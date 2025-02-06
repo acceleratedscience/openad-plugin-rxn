@@ -3,6 +3,8 @@ import pyparsing as py
 
 # OpenAD
 from openad.core.help import help_dict_create_v2
+
+# OpenAD Tools
 from openad_tools.output import output_success
 from openad_tools.helpers import confirm_prompt
 
@@ -57,7 +59,7 @@ class PluginCommand:
                 if username:
                     output_success(f"You are now logged in to RXN as <reset>{username}</reset>")
         elif login_manager.is_logged_in():
-            output_success("You are already logged in")
+            output_success("You are already logged in to RXN")
         else:
             username = login_manager.login()
             if username:

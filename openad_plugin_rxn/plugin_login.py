@@ -196,7 +196,7 @@ class RXNLoginManager:
         """
         if os.path.isfile(self.cred_path):
             os.remove(self.cred_path)
-            output_success("You are logged out of RXN", return_val=False)
+            output_success("You are logged out from RXN", return_val=False)
             return True
         else:
             output_warning("No login credentials found", return_val=False)

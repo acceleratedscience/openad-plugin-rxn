@@ -53,12 +53,12 @@ class PluginCommand:
             success = login_manager.reset()
             prompt_msg = "Would you like to log in again?" if success else "Would you like to log in?"
             if confirm_prompt(prompt_msg):
-                login_manager.login()
-        else:
-            username = login_manager.is_logged_in()
-            if username:
-                output_success(f"You are already logged in to RXN as <reset>{username}</reset>")
-            else:
                 username = login_manager.login()
                 if username:
                     output_success(f"You are now logged in to RXN as <reset>{username}</reset>")
+        elif login_manager.is_logged_in():
+            output_success("You are already logged in")
+        else:
+            username = login_manager.login()
+            if username:
+                output_success(f"You are now logged in to RXN as <reset>{username}</reset>")

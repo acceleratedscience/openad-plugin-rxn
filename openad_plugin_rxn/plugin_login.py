@@ -4,12 +4,14 @@ import pandas as pd
 import shutil
 from time import sleep
 from datetime import datetime
+from requests.exceptions import MissingSchema, HTTPError, ConnectionError
 
 # OpenAD
 from openad.helpers.credentials import load_credentials, get_credentials, write_credentials
 
 # OpenAD tools
 from openad_tools.output import output_text, output_success, output_warning, output_error
+from openad_tools.helpers import confirm_prompt
 
 # Plugin
 from openad_plugin_rxn.plugin_msg import msg
@@ -46,12 +48,12 @@ class RXNLoginManager:
         login_reset = bool(not os.path.isfile(self.cred_path))
 
         # Already logged in
-        if not login_reset and self._api_initialized():
+        if not login_reset and self._apikey_stored():
             # Link API to the project associated with your current workspace
             name, project_id = self.get_current_project()  # pylint: disable=unused-variable
             if name != self.cmd_pointer.settings["workspace"]:
                 self._sync_workspace_rxn_project()
-            return
+            return False
 
         # ------------------------------------------------
 
@@ -65,68 +67,90 @@ class RXNLoginManager:
 
         try:
             # Initialize the API
-            success = self._init_api()
-            if not success:
-                return
+            username = self._init_api()
+            if username:
+                # Link API to the project associated with your current workspace
+                self._sync_workspace_rxn_project()
+                return username
+            else:
+                return False
 
-            # Get user details
-            response = self.api.current_user().get("response", {})
-
-            # Fail - invalid API key
-            if response.get("status") == 401:
-                raise ConnectionRefusedError(response.get("message"))
-
-            # Success message for first-time login
-            if login_reset:
-                username = response.get("payload", {}).get("email") if response else None
-                output_success(
-                    f"Logged in to <yellow>{PLUGIN_NAME}</yellow> as <reset>{username}</reset>",
-                    return_val=False,
-                )
-
-            # Link API to the project associated with your current workspace
-            self._sync_workspace_rxn_project()
-
-            return
-
+        # Other failure
         except Exception as err:  # pylint: disable=broad-exception-caught
-            output_error(["Failed to initialize the RXN API", err], return_val=False)
-            return
+            output_error(["Something went wrong", err], return_val=False)
+            return False
 
     def _init_api(self):
         if not self.api:
 
-            # Get existing login credentials or prompt for new ones.
             try:
+                # Get existing login credentials or prompt for new ones.
                 config_file = self._get_creds()
-            except Exception:  # pylint: disable=broad-exception-caught
+
+                # Fix for defaults when automating rxn cred application
+                if config_file["host"].strip() == "None":
+                    config_file["host"] = ""
+
+                self.api = RXN4ChemistryWrapper(api_key=config_file["auth"]["api_key"], base_url=config_file["host"])
+
+                # You're probably offline
+                if not self.api:
+                    output_error(msg("err_api_offline"), return_val=False)
+                    return False
+
+                # Test API
+                else:
+                    # Will throw MissingSchema exception if the host is invalid
+                    response = self.api.current_user().get("response", {}) or {}
+                    username = response.get("payload", {}).get("email") if response else None
+
+                    # Response looks ok, store API credentials
+                    if username:
+                        toolkit_index = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
+                        self.cmd_pointer.login_settings["toolkits_api"][toolkit_index] = config_file["auth"]["api_key"]
+                        self.cmd_pointer.login_settings["client"][toolkit_index] = self.api
+                        return username
+
+                    # Fail - invalid API key
+                    elif not response:
+                        raise HTTPError("Empty response")
+                    elif response.get("status") == 401:
+                        raise HTTPError(response.get("message"))
+
+            # Incorrect host
+            except MissingSchema as err:
+                output_error(["Incorrect API host, please try again", err], return_val=False)
+                os.remove(self.cred_path)
                 return False
 
-            # Fix for defaults when automating rxn cred application
-            if config_file["host"].strip() == "None":
-                config_file["host"] = ""
-
-            self.api = RXN4ChemistryWrapper(api_key=config_file["auth"]["api_key"], base_url=config_file["host"])
-
-            # Store API in cmd_pointer
-            if self.api:
-                toolkit_index = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
-                self.cmd_pointer.login_settings["toolkits_api"][toolkit_index] = config_file["auth"]["api_key"]
-                self.cmd_pointer.login_settings["client"][toolkit_index] = self.api
-                return True
-
-            # You're probably offline
-            else:
-                output_error(msg("err_api_offline"), return_val=False)
+            # Incorrect API key
+            except HTTPError as err:
+                err_msg = "Invalid API key, please try again"
+                if bool(str(err)):
+                    err_msg = [err_msg, err]
+                output_error(err_msg, return_val=False)
+                os.remove(self.cred_path)
                 return False
 
-    def _api_initialized(self):
+            # Offline
+            except ConnectionError as err:
+                output_error(["Failed to connect to server", err], return_val=False)
+                return False
+
+            # Other failure
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                output_error(["Failed to initialize the RXN API", err], return_val=False)
+                if confirm_prompt("Reset credentials?"):
+                    os.remove(self.cred_path)
+                return False
+
+    def _apikey_stored(self):
         if not PLUGIN_KEY in self.cmd_pointer.login_settings["toolkits"]:
             return False
 
         toolkit_index = self.cmd_pointer.login_settings["toolkits"].index(PLUGIN_KEY)
-        api = self.cmd_pointer.login_settings["toolkits_api"][toolkit_index]
-        return bool(api)
+        api_key = self.cmd_pointer.login_settings["toolkits_api"][toolkit_index]
+        return bool(api_key)
 
     def _get_creds(self):
         """
@@ -160,15 +184,23 @@ class RXNLoginManager:
             write_credentials(api_config, self.cred_path)
         return api_config
 
+    def is_logged_in(self):
+        """
+        Check if you are logged in.
+        """
+        return bool(self._apikey_stored() and os.path.isfile(self.cred_path))
+
     def reset(self):
         """
         Remove login credentials to trigger authentication reset.
         """
         if os.path.isfile(self.cred_path):
             os.remove(self.cred_path)
-            output_success(["Login credentials deleted", "Run any RXN command to re-authenticate"], return_val=False)
+            output_success("You are logged out from RXN", return_val=False)
+            return True
         else:
             output_warning("No login credentials found", return_val=False)
+            return False
 
     # RXN project management
     # ----------------------

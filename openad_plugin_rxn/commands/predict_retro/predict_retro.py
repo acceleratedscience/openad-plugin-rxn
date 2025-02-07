@@ -11,7 +11,7 @@ from openad.smols.smol_functions import canonicalize, valid_smiles
 from openad_tools.spinner import spinner
 from openad_tools.helpers import get_print_width
 from openad_tools.style_parser import strip_tags
-from openad_tools.output import output_text, output_error
+from openad_tools.output import output_text, output_error, output_warning
 from openad_tools.jupyter import jup_display_input_molecule
 
 # Plugin
@@ -147,8 +147,18 @@ class PredictRetro(RXNPlugin):
 
         # STEP 4: Display results or return data
         if GLOBAL_SETTINGS["display"] == "api":
-            df = self._create_df_output(reactions_dict_list)
-            return df
+            if "return_df" in self.cmd:
+                # Create dataframe output
+                data = self._create_df_output(reactions_dict_list)
+            else:
+                # Raw JSON output (defsault)
+                data = reactions_dict_list
+                display(
+                    HTML(
+                        "<div class='alert alert-warning'>⚠️ Returning JSON data. If you wish to get a dataframe instead, use the <cmd>return_df</cmd> clause</div>",
+                    )
+                )
+            return data
         else:
             self._display_results(reactions_dict_list)
 
@@ -266,6 +276,10 @@ class PredictRetro(RXNPlugin):
                 # This is non-fatal and will be caught by the except block
                 response = self.api.get_predict_automatic_retrosynthesis_results(task_id)
 
+                # Sometimes RXN fails
+                if not response:
+                    raise Exception("Empty response, please try again")
+
                 # Job ready
 
                 if response.get("response").get("payload") is None:
@@ -315,7 +329,7 @@ class PredictRetro(RXNPlugin):
             # Other errors
             except Exception as err:  # pylint: disable=broad-exception-caught
                 spinner.stop()
-                # output_error(["Something went wrong", err], return_val=False)
+                output_error(["Something went wrong", err], return_val=False)
 
     def _simplify_results(self, retrosynthetic_paths):
         """
@@ -376,16 +390,61 @@ class PredictRetro(RXNPlugin):
         else:
             return key
 
-    def _get_print_str_reaction_tree(self, mol_list: list) -> str:
+    def _get_basic_print_str_reaction_list(self, reactions_dict: dict) -> str:
         """
-        Get a printable representation of the reaction tree.
+        Get a one-dimensional printable representation of the reaction tree.
+
+        This is the default display outut.
+        """
+        output = []
+
+        def _add_level(_reactions_dict):
+            # Parse
+            nonlocal output
+            confidence = _reactions_dict.get("_confidence")
+            confidence = round(confidence * 100, 2) if confidence or confidence == 0 else None
+            confidence = f"{confidence:>3}%" if confidence else "n/a "
+            children = _reactions_dict.get("children", [])
+            source_smiles = [child if isinstance(child, str) else child.get("value") for child in children]
+            source_smiles_print = [
+                child if isinstance(child, str) else f"<yellow>{child.get('value')}</yellow>" for child in children
+            ]
+            result = _reactions_dict.get("value")
+
+            # Create image
+            reaction_smiles = f"{'.'.join(source_smiles)}>>{result}"
+            reaction_image = self.get_reaction_image(reaction_smiles)
+
+            # Compile output
+            output.append(
+                f"<soft>Conf. {confidence}:</soft> <reset>{'</reset><soft> + </soft><reset>'.join(source_smiles_print)}</reset> ----> <green>{result}</green>"
+            )
+            if GLOBAL_SETTINGS["display"] == "notebook":
+                output.append(reaction_image)
+
+            for child in children:
+                if isinstance(child, dict):
+                    _add_level(child)
+
+        _add_level(reactions_dict)
+
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            return "<br>".join(output)
+        else:
+            return "\n".join(output)
+
+    def _get_rich_print_str_reaction_tree(self, mol_list: list) -> str:
+        """
+        Get a rich printable representation of the reaction tree.
+
+        This is the display output when adding the 'rich' clause.
         """
         if GLOBAL_SETTINGS["display"] == "notebook":
-            return self.__get_print_str_reaction_tree_jup(mol_list, level=0)
+            return self.__get_rich_print_str_reaction_tree_jup(mol_list, level=0)
         else:
-            return self.__get_print_str_reaction_tree_cli(mol_list, level=0, max_width=None)
+            return self.__get_rich_print_str_reaction_tree_cli(mol_list, level=0, max_width=None)
 
-    def __get_print_str_reaction_tree_jup(self, mol_list: list, level=0) -> str:
+    def __get_rich_print_str_reaction_tree_jup(self, mol_list: list, level=0) -> str:
         """
         Create printable reaction tree for Jupyter Notebook output.
         """
@@ -404,6 +463,12 @@ class PredictRetro(RXNPlugin):
                 confidence = item.get("_confidence")
                 confidence_color = self.get_confidence_style(confidence, return_color=True)
 
+                # Parse children, result and reaction smiles
+                children = item.get("children", [])
+                result = item.get("value")
+                source_smiles = [child if isinstance(child, str) else child.get("value") for child in children]
+                reaction_smiles = f"{'.'.join(source_smiles)}>>{result}"
+
                 # Add parent smiles
                 smi_val = f"<div style='color:{confidence_color}'>{plus}{item.get('value')}</div>"
                 output.append(smi_val)
@@ -411,8 +476,12 @@ class PredictRetro(RXNPlugin):
                 # Open box
                 output.append(box_tags[0])
 
+                # Add image
+                reaction_image = self.get_reaction_image(reaction_smiles)
+                output.append(reaction_image)
+
                 # Add children
-                output.append(self.__get_print_str_reaction_tree_jup(item.get("children", []), level=level + 1))
+                output.append(self.__get_rich_print_str_reaction_tree_jup(children, level=level + 1))
 
                 # Add confidence
                 confidence_print_str_list = self.get_print_str_list__confidence(confidence)
@@ -428,7 +497,7 @@ class PredictRetro(RXNPlugin):
 
         return "\n".join(output)
 
-    def __get_print_str_reaction_tree_cli(self, mol_list: list, level=0, max_width=None) -> str:
+    def __get_rich_print_str_reaction_tree_cli(self, mol_list: list, level=0, max_width=None) -> str:
         """
         Create printable reaction tree for CLI output.
 
@@ -480,7 +549,7 @@ class PredictRetro(RXNPlugin):
                 output += f"{prepend_str}<soft>├─────────────────────────</soft>\n"
 
                 # Add children
-                output += self.__get_print_str_reaction_tree_cli(
+                output += self.__get_rich_print_str_reaction_tree_cli(
                     item.get("children", []), level=level + 1, max_width=max_width
                 )
 
@@ -633,7 +702,10 @@ class PredictRetro(RXNPlugin):
         flag = self.get_flag("cached") if self.result_from_cache else ""
         # Assemble results
         for i, reactions_dict in enumerate(reactions_dict_list):
-            reaction_print_str = self._get_print_str_reaction_tree([reactions_dict])
+            if "rich_output" in self.cmd:
+                reaction_print_str = self._get_rich_print_str_reaction_tree([reactions_dict])
+            else:
+                reaction_print_str = self._get_basic_print_str_reaction_list(reactions_dict)
             output.append("")
             output.append(f"<h1>Reaction Path #{i + 1}{flag}</h1>")
             output.append(reaction_print_str)

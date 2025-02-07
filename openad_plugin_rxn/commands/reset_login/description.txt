@@ -1,3 +1,7 @@
-Login only will log you into the system, If it is your first time, or after a login reset, you will be asked to provide your details.
+Log in to RXN.
 
-`Login Reset` will reset your login credentials. You'll be asked to provide new credentials next time you run any RXN command.
+Add the <cmd>reset</cmd> clause to remove your current credentials.
+
+Examples:
+- <cmd>rxn login </cmd>
+- <cmd>rxn login reset</cmd>

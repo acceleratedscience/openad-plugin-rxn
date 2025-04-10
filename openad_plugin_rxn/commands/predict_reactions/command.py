@@ -5,7 +5,14 @@ import pyparsing as py
 from openad.core.help import help_dict_create_v2
 
 # OpenAD tools
-from openad_tools.grammar_def import list_quoted, str_quoted, str_strict_or_quoted, clause_using, clause_save_as
+from openad_tools.grammar_def import (
+    molecule_identifier,
+    list_quoted,
+    str_quoted,
+    str_strict_or_quoted,
+    clause_using,
+    clause_save_as,
+)
 
 # Plugin
 from openad_plugin_rxn.plugin_grammar_def import (
@@ -47,7 +54,7 @@ class PluginCommand:
                 + reaction_s
                 + (
                     # Single reaction
-                    str_quoted("from_str")
+                    molecule_identifier("from_str")
                     # Multiple reactions
                     | (
                         f_rom
@@ -109,11 +116,11 @@ class PluginCommand:
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
                 command=[
-                    f"{PLUGIN_NAMESPACE} predict reaction '<smiles>.<smiles>' {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict reaction <smiles>.<smiles> {clauses}",
                     f"{PLUGIN_NAMESPACE} predict reactions from list ['<smiles>.<smiles>',...] {clauses}",
                     f"{PLUGIN_NAMESPACE} predict reactions from file '<filename.csv>' {clauses}",
                     f"{PLUGIN_NAMESPACE} predict reactions from dataframe <dataframe_name> {clauses}",
-                    f"{PLUGIN_NAMESPACE} predict topn reactions '<smiles>.<smiles>' {clauses}",
+                    f"{PLUGIN_NAMESPACE} predict topn reactions <smiles>.<smiles> {clauses}",
                     f"{PLUGIN_NAMESPACE} predict topn reactions from list ['<smiles>.<smiles>',...] {clauses}",
                     f"{PLUGIN_NAMESPACE} predict topn reactions from file '<filename.csv>' {clauses}",
                     f"{PLUGIN_NAMESPACE} predict topn reactions from dataframe <dataframe_name> {clauses}",

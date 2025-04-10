@@ -59,7 +59,7 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=f"{PLUGIN_NAMESPACE} predict retrosynthesis|retro '<smiles>' [ USING (<parameter>=<value> <parameter>=<value>) ] [ rich ] [ use cache ] [ return df ]",
+                command=f"{PLUGIN_NAMESPACE} predict retrosynthesis|retro <smiles> [ USING (<parameter>=<value> <parameter>=<value>) ] [ rich ] [ use cache ] [ return df ]",
                 description=description,
             )
         )

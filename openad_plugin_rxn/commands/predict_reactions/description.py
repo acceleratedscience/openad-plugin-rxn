@@ -29,12 +29,12 @@ When providing reactions in a dataframe or CSV, make sure they are stored in a c
 
 <h1>Examples</h1>
 
-- <cmd>rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'</cmd>
+- <cmd>rxn predict reaction BrBr.c1ccc2cc3ccccc3cc2c1CCO</cmd>
 - <cmd>rxn predict reaction 'BrBr.c1ccc2cc3ccccc3cc2c1CCO' use cache</cmd>
 - <cmd>rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO', 'BrBr.c1ccc2cc3ccccc3cc2c1', 'BrBr.ABC.c1ccc2cc3ccccc3cc2c1']</cmd>
 - <cmd>rxn predict reactions from list ['BrBr.c1ccc2cc3ccccc3cc2c1CCO', 'BrBr.c1ccc2cc3ccccc3cc2c1'] using (ai_model='2018-08-31' topn=3)</cmd>
 - <cmd>rxn predict reactions from file 'my_reactions.csv' using (topn=3)</cmd>
 - <cmd>rxn predict reactions from dataframe my_reactions_df</cmd>
-- <cmd>rxn predict topn reactions 'BrBr.c1ccc2cc3ccccc3cc2c1CCO'</cmd>
+- <cmd>rxn predict topn reactions BrBr.c1ccc2cc3ccccc3cc2c1CCO</cmd>
 - <cmd>rxn predict topn reactions from file 'my_reactions.csv' using</cmd>
 """

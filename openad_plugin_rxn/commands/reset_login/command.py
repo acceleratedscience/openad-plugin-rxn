@@ -15,7 +15,7 @@ from openad_plugin_rxn.plugin_login import RXNLoginManager
 
 
 class PluginCommand:
-    """Reset login"""
+    """Login or Reset login"""
 
     category: str  # Category of command
     index: int  # Order in help

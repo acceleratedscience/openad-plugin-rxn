@@ -263,6 +263,7 @@ class PredictRetro(RXNPlugin):
         max_retries = 30  # 5 minutes max
         try_again = True
         response = None
+        error_TOAST = 0
 
         while try_again:
             try:
@@ -280,6 +281,14 @@ class PredictRetro(RXNPlugin):
                     raise Exception("Empty response, please try again")
 
                 # Job ready
+
+                if response.get("response").get("payload") is None:
+                    error_TOAST += 1
+                    if error_TOAST > 9:
+                        spinner.fail(f"RXN Server Processing Error, report taskid `{task_id}`to RXN")
+                        spinner.stop()
+                        return False
+
                 if response.get("status") == "SUCCESS":
                     try_again = False
                     retrosynthetic_paths = response.get("retrosynthetic_paths")

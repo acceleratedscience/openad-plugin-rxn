@@ -16,5 +16,7 @@ PLUGIN_NAME = plugin_metadata.get("name")
 PLUGIN_KEY = PLUGIN_NAME.lower().replace(" ", "_")  # snake_case name, for internal use
 PLUGIN_NAMESPACE = plugin_metadata.get("namespace")
 CLAUSES = {
-    "save_as": "Use the <cmd>save as</cmd> clause to save the results as a csv file in your current workspace.",
+    "save_as": "<cmd>save as</cmd>\n    Save the results as a csv file in your current workspace.",
+    "use_cache": "<cmd>use cache</cmd>\n    Use cached results when available.",
+    "rich_output": "<cmd>rich</cmd>\n    Display rich output. This will make your results easier to understand but will take up more vertical space.",
 }

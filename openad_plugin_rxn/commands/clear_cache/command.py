@@ -28,7 +28,7 @@ class PluginCommand:
         """Create the command definition & documentation"""
 
         # Command definition
-        statements.append(py.Forward(py.Word(PLUGIN_NAMESPACE) + clear + cache)(self.parser_id))
+        statements.append(py.Forward(py.CaselessKeyword(PLUGIN_NAMESPACE) + clear + cache)(self.parser_id))
 
         # Command help
         grammar_help.append(

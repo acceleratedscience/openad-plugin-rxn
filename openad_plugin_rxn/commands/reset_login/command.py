@@ -4,6 +4,10 @@ import pyparsing as py
 # OpenAD
 from openad.core.help import help_dict_create_v2
 
+# OpenAD Tools
+from openad_tools.output import output_success
+from openad_tools.helpers import confirm_prompt
+
 # Plugin
 from openad_plugin_rxn.plugin_grammar_def import reset, login
 from openad_plugin_rxn.plugin_params import PLUGIN_NAME, PLUGIN_KEY, PLUGIN_NAMESPACE
@@ -11,7 +15,7 @@ from openad_plugin_rxn.plugin_login import RXNLoginManager
 
 
 class PluginCommand:
-    """Reset login"""
+    """Login or Reset login"""
 
     category: str  # Category of command
     index: int  # Order in help
@@ -28,7 +32,9 @@ class PluginCommand:
         """Create the command definition & documentation"""
 
         # Command definition
-        statements.append(py.Forward(py.Word(PLUGIN_NAMESPACE) + reset + login)(self.parser_id))
+        statements.append(
+            py.Forward(py.CaselessKeyword(PLUGIN_NAMESPACE) + login + py.Optional(reset)("reset"))(self.parser_id)
+        )
 
         # Command help
         grammar_help.append(
@@ -36,12 +42,25 @@ class PluginCommand:
                 plugin_name=PLUGIN_NAME,
                 plugin_namespace=PLUGIN_NAMESPACE,
                 category=self.category,
-                command=f"{PLUGIN_NAMESPACE} reset login",
+                command=f"{PLUGIN_NAMESPACE} login [ reset ]",
                 description_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "description.txt"),
             )
         )
 
     def exec_command(self, cmd_pointer, parser):
         """Execute the command"""
+        cmd = parser.as_dict()
         login_manager = RXNLoginManager(cmd_pointer)
-        login_manager.reset()
+        if "reset" in cmd:
+            success = login_manager.reset()
+            prompt_msg = "Would you like to log in again?" if success else "Would you like to log in?"
+            if confirm_prompt(prompt_msg):
+                username = login_manager.login()
+                if username:
+                    output_success(f"You are now logged in to RXN as <reset>{username}</reset>")
+        elif login_manager.is_logged_in():
+            output_success("You are already logged in to RXN")
+        else:
+            username = login_manager.login()
+            if username:
+                output_success(f"You are now logged in to RXN as <reset>{username}</reset>")

@@ -1,7 +1,5 @@
 import pandas as pd
 from time import sleep
-from rdkit.Chem import AllChem
-from rdkit.Chem.Draw import rdMolDraw2D
 from IPython.display import display, HTML
 
 # OpenAD
@@ -132,12 +130,18 @@ class PredictReactions(RXNPlugin):
             if not self.reaction_predictions:
                 return
 
-            # Insert None values in the reaction_predictions list
-            # at the same index where the invalid reactions were,
-            # so indices match between reactions_list and reaction_predictions
+            # Insert None values in the reaction_predictions list at the
+            # same index where the invalid or cached reactions were, so
+            # indices match between reactions_list and reaction_predictions
             for reaction in self.reactions_list:
-                if reaction in self.invalid_reactions:
+                if reaction in self.invalid_reactions or reaction in self.cached_reactions:
                     self.reaction_predictions.insert(self.reactions_list.index(reaction), None)
+
+        # # For debugging
+        # print("\nReactions:\n", self.reactions_list)
+        # print("\nInvalid:\n", self.invalid_reactions)
+        # print("\nCached:\n", self.cached_reactions)
+        # print("\nPredictions:\n", self.reaction_predictions)
 
         # Loop through reaction results and print them
         for i, reaction in enumerate(self.reactions_list):
@@ -181,7 +185,7 @@ class PredictReactions(RXNPlugin):
             # 1) Input smiles
             input_smiles = reaction.split(".")
             input_smiles_key = self.homogenize_smiles(input_smiles)
-            topn = self.using_params.get("topn")
+            topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
             topn_str = "" if topn in [None, 0, "0"] else f"-topn-{topn}"
             self.store_result_cache(
                 name=f"predict-reaction-{self.using_params.get('ai_model')}{topn_str}",
@@ -278,7 +282,11 @@ class PredictReactions(RXNPlugin):
                     else:
                         from_list = self.get_column_as_list_from_dataframe(reactions_df, "reactions")
                         if not from_list:
-                            return output_error("No reactions found in CSV file, file should have column 'reactions'")
+                            output_error(
+                                "No reactions found in CSV file. Reactions should be stored in a column named 'Reactions'",
+                                return_val=False,
+                            )
+                            return []
                         self.validate_reactions_list(from_list)
 
                 # TXT file
@@ -336,7 +344,7 @@ class PredictReactions(RXNPlugin):
             # Check for cached results
             elif self.use_cache:
                 input_smiles_key = self.homogenize_smiles(input_smiles)
-                topn = self.using_params.get("topn")
+                topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
                 topn_str = "" if topn in [None, 0, "0"] else f"-topn-{topn}"
                 result_from_cache = self.retrieve_result_cache(
                     name=f"predict-reaction-{self.using_params.get('ai_model')}{topn_str}",
@@ -371,7 +379,7 @@ class PredictReactions(RXNPlugin):
 
                 # raise Exception("This is a test error")
                 ai_model = self.using_params.get("ai_model")
-                topn = self.using_params.get("topn")
+                topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
 
                 # Note: RXN provides a separate API endpoint for single reactions,
                 # which returns a bit more data including an image, but we don't use
@@ -430,7 +438,7 @@ class PredictReactions(RXNPlugin):
                     spinner.start(f"Processing prediction - retry #{retries}")
 
                 # raise Exception("This is a test error")
-                topn = self.using_params.get("topn")
+                topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
                 if topn not in [None, 0, "0"]:
                     response = self.api.get_predict_reaction_batch_topn_results(task_id)
                 else:
@@ -563,10 +571,12 @@ class PredictReactions(RXNPlugin):
         # Prediction results from topn queries are structured
         # differently and have their own display function
         is_topn_result = self.__is_topn_result(prediction)
+        rich_output = "rich_output" in self.cmd
+        print_str = ""
         if is_topn_result:
-            print_str = self.__generate_print_str_topn(index, reaction, prediction, from_cache)
+            print_str = self.__generate_print_str_topn(index, reaction, prediction, from_cache, rich_output)
         else:
-            print_str = self.__generate_print_str(index, reaction, prediction, invalid_smiles, from_cache)
+            print_str = self.__generate_print_str(index, reaction, prediction, invalid_smiles, from_cache, rich_output)
 
         # Display in Jupyter Notebook
         if GLOBAL_SETTINGS["display"] == "notebook":
@@ -576,7 +586,7 @@ class PredictReactions(RXNPlugin):
             # Add image
             # Except for topn results, which shows a list of results instead of one
             if prediction and not self.__is_topn_result(prediction):
-                output.append(self.__get_reaction_image(prediction.get("smiles")))
+                output.append(self.get_reaction_image(prediction.get("smiles")))
 
             # Wrap text in padded div
             print_str = "<div style='padding: 32px'>" + print_str + "</div>"
@@ -591,7 +601,8 @@ class PredictReactions(RXNPlugin):
 
         # Display in CLI
         elif not GLOBAL_SETTINGS["display"] == "api":
-            output_text(print_str, pad=2, nowrap=True, return_val=False)
+            pad = 2 if "rich_output" in self.cmd else 1
+            output_text(print_str, pad=pad, nowrap=True, return_val=False)
 
     def __is_topn_result(self, prediction: dict) -> bool:
         """
@@ -608,9 +619,10 @@ class PredictReactions(RXNPlugin):
         prediction: dict = None,
         invalid_smiles: list = None,
         from_cache: bool = False,
+        rich_output: bool = False,
     ):
         """
-        Generate a print string for a single reaction.
+        Generate a rich print string for a single reaction.
 
         See _display_reaction() for parameters.
         """
@@ -620,16 +632,23 @@ class PredictReactions(RXNPlugin):
         # Invalid reaction
         if invalid_smiles:
             header_print_str = self.___print_str__header(index, flag="failed")
-            reaction_print_str = self.___print_str__reaction_invalid(input_smiles, invalid_smiles)
+            if rich_output:
+                reaction_print_str = self.___print_str_rich__reaction_invalid(input_smiles, invalid_smiles)
+            else:
+                reaction_print_str = self.___print_str_basic__reaction_invalid(input_smiles, invalid_smiles)
             print_str = "\n".join([header_print_str, reaction_print_str])
 
         # Valid reaction
         else:
             flag = "cached" if from_cache else ""
             header_print_str = self.___print_str__header(index, flag)
-            reaction_print_str = self.___print_str__reaction(input_smiles, prediction)
-            confidence_print_str = self.___print_str__confidence(prediction.get("confidence"))
-            print_str = "\n".join([header_print_str, reaction_print_str, confidence_print_str])
+            if rich_output:
+                reaction_print_str = self.___print_str_rich__reaction(input_smiles, prediction)
+                confidence_print_str = self.___print_str__confidence(prediction.get("confidence"))
+                print_str = "\n".join([header_print_str, reaction_print_str, confidence_print_str])
+            else:
+                reaction_print_str = self.___print_str_basic__reaction(input_smiles, prediction)
+                print_str = "\n".join([header_print_str, reaction_print_str])
 
         return print_str
 
@@ -639,9 +658,10 @@ class PredictReactions(RXNPlugin):
         reaction,
         prediction: dict = None,
         from_cache: bool = False,
+        rich_output: bool = False,
     ):
         """
-        Generate a print string for a single reaction.
+        Generate a rich print string for a single reaction.
 
         See _display_reaction() for parameters.
         """
@@ -652,7 +672,10 @@ class PredictReactions(RXNPlugin):
 
         flag = "cached" if from_cache else ""
         header_print_str = self.___print_str__header(index, flag)
-        reaction_print_str = self.___print_str__reaction_topn(input_smiles, prediction)
+        if rich_output:
+            reaction_print_str = self.___print_str_rich__reaction_topn(input_smiles, prediction)
+        else:
+            reaction_print_str = self.___print_str_basic__reaction_topn(input_smiles, prediction)
         print_str = "\n".join([header_print_str, reaction_print_str])
 
         return print_str
@@ -692,7 +715,58 @@ class PredictReactions(RXNPlugin):
 
         return "\n".join(output)
 
-    def ___print_str__reaction(self, input_smiles: list, prediction: dict):
+    def ___print_str_basic__reaction(self, input_smiles: list, prediction: dict):
+        """
+        Get a basic string representation of a reaction.
+
+        Parameters
+        ----------
+        input_smiles: list
+            List of input smiles strings.
+            Example:['AA', 'BB']
+        prediction: dict
+            prediction output from API.
+            Example:
+            {
+                "confidence": 0.7777777777777777,
+                "smiles": "AA.BB>>CC",
+                "photochemical": False,
+                "thermal": False,
+            }
+
+        Returns
+        -------
+        Smiles: AA.BB>>CC
+        Reaction: AA + BB ----> CC
+        Confidence: 78%
+        """
+
+        # Deconstruct
+        reaction_smiles = prediction.get("smiles")
+        confidence = prediction.get("confidence")
+        reaction_in_out = reaction_smiles.split(">>")
+        reaction_output = reaction_in_out[1]
+
+        # Assemble
+        confidence_bar = self.get_print_str_list__confidence(confidence)[0]
+        confidence = f"{round(confidence * 100, 2)}%" if confidence else "n/a"
+        reaction_input_str = " <soft>+</soft> ".join(input_smiles)
+        reaction_output_str = f" <soft>----></soft> {reaction_output}"
+        output = [
+            f"<yellow>Smiles:    </yellow> {reaction_smiles}",
+            f"<yellow>Reaction:  </yellow> {reaction_input_str}{reaction_output_str}",
+            f"<yellow>Confidence:</yellow> <soft>{confidence}</soft>",  # + confidence_bar,
+        ]
+
+        # Turn into HTML for Jupyter Notebook
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            output = "<br>".join(output) + "<br>"
+            output = tags_to_markdown(output)
+            return output
+        else:
+            return "\n".join(output)
+
+    def ___print_str_rich__reaction(self, input_smiles: list, prediction: dict):
         """
         Get a clean, multiline string representation of a reaction.
 
@@ -755,7 +829,79 @@ class PredictReactions(RXNPlugin):
         else:
             return "\n".join(output)
 
-    def ___print_str__reaction_topn(self, input_smiles: list, prediction: dict):
+    def ___print_str_basic__reaction_topn(self, input_smiles: list, prediction: dict):
+        """
+        Get a clean, multiline string representation of a topn reaction.
+
+        Parameters
+        ----------
+        input_smiles: list
+            List of input smiles strings.
+            Example:['AA', 'BB']
+        prediction: dict
+            prediction output from API.
+            Example:
+            {
+                "results": [
+                    {"confidence": 0.77777777777777777, "smiles": ["DD"]},
+                    {"confidence": 0.66666666666666666, "smiles": ["EE"]},
+                    {"confidence": 0.55555555555555555, "smiles": ["FF"]},
+                ],
+                "raw_results": [
+                    {
+                        "confidence": 0.77777777777777777,
+                        "smiles": "DD",
+                        "photochemical": False,
+                        "thermal": False,
+                    },
+                    {
+                        "confidence": 0.66666666666666666,
+                        "smiles": "EE",
+                        "photochemical": False,
+                        "thermal": False,
+                    },
+                    {
+                        "confidence": 0.55555555555555555,
+                        "smiles": "FF",
+                        "photochemical": False,
+                        "thermal": False,
+                    }
+                ],
+            }
+
+        Returns
+        -------
+        Reaction: AA.BB.CC
+        1 Conf. 77.77% DD
+        2 Conf. 66.66% EE
+        3 Conf. 55.55% FF
+        """
+
+        # Assemble
+        reaction_smiles = ".".join(input_smiles)
+        reaction_output_print = []
+        results = prediction.get("results", [])
+        for i, result in enumerate(results, start=1):
+            output_smiles = result.get("smiles", [""])[0]
+            confidence = result.get("confidence")
+            confidence = f"{round(confidence * 100)}%" if confidence or confidence == 0 else None
+            confidence = f"{confidence:<3}" if confidence is not None else "n/a "
+            reaction_output_print.append(f"{i} <soft>Conf. {confidence}</soft> {output_smiles}")
+
+        output = [
+            f"<yellow>Smiles:</yellow> {reaction_smiles}",
+            *reaction_output_print,
+        ]
+
+        # Turn into HTML for Jupyter Notebook
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            output = "<br>".join(output) + "<br>"
+            output = tags_to_markdown(output)
+            return output
+        else:
+            return "\n".join(output)
+
+    def ___print_str_rich__reaction_topn(self, input_smiles: list, prediction: dict):
         """
         Get a clean, multiline string representation of a topn reaction.
 
@@ -843,7 +989,44 @@ class PredictReactions(RXNPlugin):
         else:
             return "\n".join(output)
 
-    def ___print_str__reaction_invalid(self, input_smiles: list, invalid_smiles: list):
+    def ___print_str_basic__reaction_invalid(self, input_smiles: list, invalid_smiles: list):
+        """
+        Get a simple string representation of an invalid reaction.
+
+        Input:
+            ['AA', 'BB', 'CC']
+            ['BB']
+
+        Output:
+            Smiles: AA.BB>>CC
+            Reaction: AA + BB ----> CC
+            Invalid reaction
+        """
+
+        input_smiles = input_smiles if input_smiles else []
+        invalid_smiles = invalid_smiles if invalid_smiles else []
+
+        # Mark valid/invalid smiles
+        input_smiles = [f"<error>{smiles}</error>" if smiles in invalid_smiles else smiles for smiles in input_smiles]
+
+        # Assemble
+        reaction_smiles = ".".join(input_smiles)
+        reaction_print = " <soft>+</soft> ".join(input_smiles) + " <soft>----></soft> <error>error</error>"
+        output = [
+            # "<error>Invalid reaction</error>",
+            f"<error>Smiles:    </error> {reaction_smiles}",
+            f"<error>Reaction:  </error> {reaction_print}",
+        ]
+
+        # Turn into HTML for Jupyter Notebook
+        if GLOBAL_SETTINGS["display"] == "notebook":
+            output = "<br>".join(output) + "<br>"
+            output = tags_to_markdown(output)
+            return output
+        else:
+            return "\n".join(output)
+
+    def ___print_str_rich__reaction_invalid(self, input_smiles: list, invalid_smiles: list):
         """
         Get a clean, multiline string representation of an invalid reaction.
 
@@ -893,32 +1076,13 @@ class PredictReactions(RXNPlugin):
         confidence_print_str_list = self.get_print_str_list__confidence(confidence)
         return "\n".join(confidence_print_str_list)
 
-    def __get_reaction_image(self, reaction_smiles: str):
+    def _get_backward_compatible_topn(self):
         """
-        Fetch reaction image from a smiles reaction string, for Jupyter Notebook.
+        Ensure backward compatibility with the toolkit command.
 
-        Parameters
-        ----------
-        reaction_smiles : str
-            Reaction smiles string
-            Format: smiles.smiles.smiles>>smiles
-            Example: BrBr.OCCc1cccc2cc3ccccc3cc12>>BrCCc1cccc2c(Br)c3ccccc3cc12
+        If topn is present in the command, we set the value to 5 to match the toolkit behavior.
         """
-
-        reaction = AllChem.ReactionFromSmarts(reaction_smiles, useSmiles=True)
-
-        # Set drawing options
-        width, height = 800, 200
-        draw_options = rdMolDraw2D.MolDrawOptions()
-        draw_options.bondLineWidth = 1.0
-
-        # Create drawer
-        drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
-        drawer.SetDrawOptions(draw_options)
-
-        # Draw reaction
-        drawer.DrawReaction(reaction)
-        drawer.FinishDrawing()
-        svg = drawer.GetDrawingText()
-
-        return svg
+        if "topn" in self.cmd:
+            return 5
+        else:
+            return None

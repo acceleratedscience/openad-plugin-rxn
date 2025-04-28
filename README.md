@@ -1,4 +1,4 @@
-# OpenAD Plugin - Deep Search
+# OpenAD Plugin - RXN
 
 _This is a plugin for [OpenAD](https://github.com/acceleratedscience/open-ad-toolkit)_
 
@@ -40,7 +40,7 @@ Installation for development:
 
 <br>
 
-## Login
+## Authentication
 
 In order to use this plugin, you need an API key. You'll get 100 API request for free.
 
@@ -49,7 +49,7 @@ In order to use this plugin, you need an API key. You'll get 100 API request for
     
     ![RXN API key](assets/rxn-api-key.png)
 
-3. Use any RXN command to be prompted for your credentials.
+3. Use `rxn login` or any RXN command to be prompted for your credentials.
 
     - **Hostname:** (Enter blank for default - [https://rxn.app.accelerate.science](https://rxn.app.accelerate.science))
     - **API_key:** Your API key

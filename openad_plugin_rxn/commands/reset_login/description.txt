@@ -1,1 +1,7 @@
-Reset your login credentials. You'll be asked to provide new credentials next time you run any RXN command.
+Log in to RXN.
+
+Add the <cmd>reset</cmd> clause to remove your current credentials.
+
+Examples:
+- <cmd>rxn login </cmd>
+- <cmd>rxn login reset</cmd>

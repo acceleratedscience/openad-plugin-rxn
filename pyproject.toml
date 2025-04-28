@@ -26,6 +26,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
+rxn4chemistry = ">=1.14.0"
 openad_tools = { git = "ssh://git@github.com/acceleratedscience/openad-tools", tag = "v0.0.1" }
 
 

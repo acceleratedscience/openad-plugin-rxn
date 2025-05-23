@@ -264,7 +264,7 @@ class PredictReactions(RXNPlugin):
 
         # Form string
         if self.cmd.get("from_str"):
-            from_list = [self.cmd.get("from_str")]
+            from_list = self.cmd.get("from_str")
 
         # From file
         elif self.cmd.get("from_file"):

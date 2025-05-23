@@ -53,16 +53,17 @@ class PluginCommand:
                 + py.Optional(topn)
                 + reaction_s
                 + (
-                    # Single reaction
-                    molecule_identifier("from_str")
                     # Multiple reactions
-                    | (
+                    (
                         f_rom
                         + (
                             (py.Suppress("list") + list_quoted)("from_list")
                             | (py.Suppress("file") + str_quoted("from_file"))
                             | (py.Suppress("dataframe") + str_strict_or_quoted("from_df"))
                         )
+                        |
+                        # Single reaction
+                        molecule_identifier("from_str")
                     )
                 )
                 + clause_using

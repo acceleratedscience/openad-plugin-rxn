@@ -88,6 +88,7 @@ class RXNLoginManager:
             try:
                 # Get existing login credentials or prompt for new ones.
                 config_file = self._get_creds()
+                # print(config_file)
 
                 # Fix for defaults when automating rxn cred application
                 if config_file["host"].strip() == "None":
@@ -200,6 +201,15 @@ class RXNLoginManager:
         """
         if os.path.isfile(self.cred_path):
             os.remove(self.cred_path)
+
+            # We're deletig the projects file too to avoid obscure errors when swicthing API keys.
+            # This means that next time you use this API key, a new project with the same name will
+            # be created. Ideally this file would be persistent, and we'd store your project IDs per
+            # API key, but because there's no other identifier for an API key other than the key itself,
+            # we can't do that securely.
+            if os.path.isfile(self.cmd_pointer.home_dir + "/RXN_Projects/rxn_projects.pkl"):
+                os.remove(self.cmd_pointer.home_dir + "/RXN_Projects/rxn_projects.pkl")
+
             output_success("You are logged out from RXN", return_val=False)
             return True
         else:

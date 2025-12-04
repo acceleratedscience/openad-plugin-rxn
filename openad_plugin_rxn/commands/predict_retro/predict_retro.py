@@ -238,10 +238,10 @@ class PredictRetro(RXNPlugin):
         # Capture response value, this can be '' instead of dict
         job_response_value = job_response.get("response", {}) or {}
 
-        # Fail - empty response
+        # Fail - empty or invalid response
         if not job_response or not job_response_value.get("payload"):
             spinner.stop()
-            output_error(["The server returned an empty response", job_response], return_val=False)
+            output_error(["The server did not return a valid response", job_response], return_val=False)
             return
 
         if not job_response.get("prediction_id"):

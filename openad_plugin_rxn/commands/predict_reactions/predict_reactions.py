@@ -372,10 +372,10 @@ class PredictReactions(RXNPlugin):
         launch_job_response = None
         while try_again is True:
             try:
-                if retries == 0:
-                    spinner.start("Starting prediction")
-                else:
-                    spinner.start(f"Starting prediction - retry #{retries}")
+                # if retries == 0:
+                #     spinner.start("Starting prediction")
+                # else:
+                #     spinner.start(f"Starting prediction - retry #{retries}")
 
                 # raise Exception("This is a test error")
                 ai_model = self.using_params.get("ai_model")
@@ -408,12 +408,12 @@ class PredictReactions(RXNPlugin):
                 sleep(2)
                 retries = retries + 1
                 if retries > max_retries:
-                    spinner.stop()
+                    # spinner.stop()
                     output_error([f"Server unresponsive after {max_retries} retries", err], return_val=False)
                     return False
 
         task_id = launch_job_response.get("task_id")
-        spinner.stop()
+        # spinner.stop()
         output_text(f"<yellow>Task id:</yellow> <soft>{task_id}</soft>", return_val=False)
         return task_id
 
@@ -432,10 +432,10 @@ class PredictReactions(RXNPlugin):
         response = None
         while try_again is True:
             try:
-                if retries == 0:
-                    spinner.start("Processing prediction")
-                else:
-                    spinner.start(f"Processing prediction - retry #{retries}")
+                # if retries == 0:
+                #     spinner.start("Processing prediction")
+                # else:
+                #     spinner.start(f"Processing prediction - retry #{retries}")
 
                 # raise Exception("This is a test error")
                 topn = self.using_params.get("topn") or self._get_backward_compatible_topn()
@@ -461,17 +461,17 @@ class PredictReactions(RXNPlugin):
                 sleep(2)
                 retries = retries + 1
                 if retries > max_retries:
-                    spinner.stop()
+                    # spinner.stop()
                     output_error([f"Server unresponsive after {max_retries} retries", err], return_val=False)
                     return False
 
             # Error, abort
             except ValueError as err:
-                spinner.stop()
+                # spinner.stop()
                 output_error(["RXN API error", err], return_val=False)
                 return False
 
-        spinner.succeed("Done")
+        # spinner.succeed("Done")
         return response.get("predictions")
 
     def _add_to_output_data(self, reaction, prediction=None, from_cache=False, error=None):

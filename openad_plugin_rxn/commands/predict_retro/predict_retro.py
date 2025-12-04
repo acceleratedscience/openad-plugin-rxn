@@ -282,7 +282,7 @@ class PredictRetro(RXNPlugin):
 
                 # Job ready
 
-                if response.get("response").get("payload") is None:
+                if response.get("response", {}).get("payload") is None:
                     error_TOAST += 1
                     if error_TOAST > 9:
                         spinner.fail(f"RXN Server Processing Error, report taskid `{task_id}`to RXN")

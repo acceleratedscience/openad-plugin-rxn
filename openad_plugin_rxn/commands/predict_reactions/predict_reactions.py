@@ -103,6 +103,12 @@ class PredictReactions(RXNPlugin):
             output_error(msg("err_api_offline"), return_val=False)
             return
 
+        # Make sure the API initialized successfully
+        name, project_id = self.login_manager.get_current_project()
+        if not project_id:
+            output_error("No RXN project ID set, aborting", name, return_val=False)
+            return
+
         # Setup
         if not self._setup():
             return

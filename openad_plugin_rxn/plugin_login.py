@@ -18,6 +18,8 @@ from openad_plugin_rxn.plugin_msg import msg
 from openad_plugin_rxn.plugin_params import PLUGIN_KEY, PLUGIN_NAME
 from rxn4chemistry import RXN4ChemistryWrapper
 
+DELAY_TO_PREVENT_OVERLOAD = 2
+
 
 class RXNLoginManager:
     """
@@ -103,6 +105,8 @@ class RXNLoginManager:
                     # Will throw MissingSchema exception if the host is invalid
                     response = self.api.current_user().get("response", {}) or {}
                     username = response.get("payload", {}).get("email") if response else None
+                    output_text(f"<soft>Initializing RXN API as '{username}'...</soft>", return_val=False)
+                    sleep(DELAY_TO_PREVENT_OVERLOAD)
 
                     # Response looks ok, store API credentials
                     if username:
@@ -233,17 +237,28 @@ class RXNLoginManager:
             retries += 1
 
             try:
+                if not self.api:
+                    raise Exception("API not initialized")
+
                 result = self.api.create_project(self.cmd_pointer.settings["workspace"])
+                output_text(
+                    f"<soft>Creating new project for workspace {self.cmd_pointer.settings['workspace']}</soft>",
+                    return_val=False,
+                )
+                sleep(DELAY_TO_PREVENT_OVERLOAD)
 
                 if len(result) == 0:
                     continue
                 else:
+                    id = result.get("response", {}).get("payload", {}).get("id")
+                    if not id:
+                        raise Exception("No project ID returned", result)
                     self.__append_project(
                         self.cmd_pointer.settings["workspace"].upper(),
-                        result["response"]["payload"]["id"],
+                        id,
                     )
             except Exception as err:  # pylint: disable=broad-exception-caught
-                output_error(["Unable to create RXN project", "API may be offline", err], return_val=False)
+                output_error(["Unable to create RXN project", err], return_val=False)
                 return
 
             try:
@@ -313,6 +328,8 @@ class RXNLoginManager:
 
             try:
                 self.api.set_project(project_id)
+                output_text(f"<soft>Setting API project_id: {project_id}</soft>", return_val=False)
+                sleep(DELAY_TO_PREVENT_OVERLOAD)
                 return True
             except Exception as err:  # pylint: disable=broad-exception-caught
                 output_error(["Failed to set API's project_id", err], return_val=False)

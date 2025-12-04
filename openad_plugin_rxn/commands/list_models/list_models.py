@@ -8,6 +8,7 @@ from openad_tools.jupyter import save_df_as_csv
 from openad_tools.output import output_table, output_error, output_text
 
 # Plugin
+from openad_plugin_rxn.plugin_msg import msg
 from openad_plugin_rxn.plugin_master_class import RXNPlugin
 
 
@@ -32,6 +33,17 @@ class ListModels(RXNPlugin):
         """
         Run the command.
         """
+
+        # In case you're offline
+        if not self.api:
+            output_error(msg("err_api_offline"), return_val=False)
+            return
+
+        # Make sure the API initialized successfully
+        name, project_id = self.login_manager.get_current_project()
+        if not project_id:
+            output_error("No RXN project ID set, aborting", name, return_val=False)
+            return
 
         # Load models
         try:

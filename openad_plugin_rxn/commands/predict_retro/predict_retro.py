@@ -83,6 +83,12 @@ class PredictRetro(RXNPlugin):
             output_error(msg("err_api_offline"), return_val=False)
             return
 
+        # Make sure the API initialized successfully
+        name, project_id = self.login_manager.get_current_project()
+        if not project_id:
+            output_error("No RXN project ID set, aborting", name, return_val=False)
+            return
+
         # Setup
         success = self._parse_input()
         if not success:
@@ -200,10 +206,8 @@ class PredictRetro(RXNPlugin):
         job_response = None
         while status is False:
             try:
-                if retries == 0:
-                    spinner.start("Starting retrosynthesis")
-                else:
-                    spinner.start(f"Starting retrosynthesis - retry #{retries}")
+                if retries > 0:
+                    output_text(f"<soft>Failed to connect, retry #{retries}</soft>")
 
                 # Run query
                 # raise Exception("This is a test error")
@@ -231,8 +235,11 @@ class PredictRetro(RXNPlugin):
                     output_error([self.err_unresponsive_retries, err], return_val=False)
                     return
 
+        # Capture response value, this can be '' instead of dict
+        job_response_value = job_response.get("response", {}) or {}
+
         # Fail - empty response
-        if not job_response or not job_response.get("response", {}).get("payload"):
+        if not job_response or not job_response_value.get("payload"):
             spinner.stop()
             output_error(["The server returned an empty response", job_response], return_val=False)
             return
@@ -243,13 +250,15 @@ class PredictRetro(RXNPlugin):
             return
 
         # Fail - error from RXN
-        rxn_error_msg = job_response.get("response", {}).get("payload", {}).get("errorMessage")
+        rxn_error_msg = job_response_value.get("payload", {}).get("errorMessage")
         if rxn_error_msg:
             spinner.stop()
             output_error(rxn_error_msg, return_val=False)
             return
 
         task_id = job_response.get("prediction_id")
+        output_text(f"<yellow>Task id:</yellow> <soft>{task_id}</soft>", return_val=False)
+        spinner.start("Starting retrosynthesis")
         return task_id
 
     def _api_get_results(self, task_id):
@@ -280,9 +289,11 @@ class PredictRetro(RXNPlugin):
                 if not response:
                     raise Exception("Empty response, please try again")
 
-                # Job ready
+                # Capture response value, this can be '' instead of dict
+                response_value = response.get("response", {}) or {}
 
-                if response.get("response", {}).get("payload") is None:
+                # Job ready
+                if response_value.get("payload") is None:
                     error_TOAST += 1
                     if error_TOAST > 9:
                         spinner.fail(f"RXN Server Processing Error, report taskid `{task_id}`to RXN")
